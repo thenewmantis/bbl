@@ -7,6 +7,7 @@ This implementation allows for numerous translations/versions of the Bible to be
 
 ## Usage
 
+```
 usage: bbl [flags] [bible] [reference...]
 
   Flags:
@@ -42,6 +43,7 @@ usage: bbl [flags] [bible] [reference...]
           All verses in a book that match a pattern
       <Book>:<Chapter>/<Search>
           All verses in a chapter of a book that match a pattern
+```
 
 ## Note
 
