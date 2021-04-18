@@ -62,7 +62,7 @@ set_bible() {
     BIBLE=$1
 }
 
-opts="$(getopt -o lWchdgjknv -l list,no-line-wrap,cat,help,vulgate -- "$@")"
+opts="$(getopt -o lWchdgjknv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
