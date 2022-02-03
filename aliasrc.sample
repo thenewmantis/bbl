@@ -1,7 +1,7 @@
 # Bible
 alias \
         drb="bbl --douay" \
-        grb="bbl --greek"
+        grb="bbl --greek" \
         njb="bbl --jerusalem" \
         knx="bbl --knox" \
         kjv="bbl --kjv" \
