@@ -3,8 +3,7 @@
 # License: Public domain
 
 SELF="$0"
-# Use Knox Bible if none is specified in command line options
-BIBLE=knx
+BIBLE=""
 
 get_data() {
 	sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
@@ -59,7 +58,12 @@ show_help() {
 }
 
 set_bible() {
-    BIBLE=$1
+    if [ -z "${BIBLE}" ]; then
+        BIBLE=$1
+    else
+        #For cross-referencing
+        BIBLE=${BIBLE}" "$1
+    fi
 }
 
 opts="$(getopt -o lWchdgjknv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,vulgate -- "$@")"
@@ -101,13 +105,20 @@ while [ $# -gt 0 ]; do
                 set_bible vul
                 shift ;;
          *)
+                # Use Knox Bible if none is specified in command line options
+                set_bible knx
                 break ;;
     esac
 done
 
 cols=$(tput cols 2>/dev/null)
 if [ $? -eq 0 ]; then
-	export KJV_MAX_WIDTH="$cols"
+        versions=0
+        for b in $BIBLE; do
+            versions=$(( versions + 1 ))
+        done
+        spaceBetween=$(( 8 * (versions - 1)))
+        export KJV_MAX_WIDTH="$(( (cols - spaceBetween) / versions ))"
 fi
 
 if [ $# -eq 0 ]; then
@@ -126,4 +137,19 @@ if [ $# -eq 0 ]; then
 	exit 0
 fi
 
-get_data ${BIBLE}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" "$(get_data bbl.awk)" 2>/dev/null | ${PAGER}
+crossRef=0
+i=1
+mydir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
+for version in $BIBLE; do
+    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="$crossRef" "$(get_data bbl.awk)" 2>/dev/null > "${mydir}/${i}-${version}.txt"
+    i=$((i + 1))
+    crossRef=1
+done
+
+cd "${mydir}"
+if [ ${crossRef} ]; then
+    paste $(ls) -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' | ${PAGER}
+else
+    ${PAGER} "${mydir}/$(ls)"
+fi
+rm -rf "${mydir}"

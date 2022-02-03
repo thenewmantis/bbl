@@ -32,6 +32,7 @@ function parseref(ref, arr) {
 	# 2. <book>:?<chapter>
 	# 3. <book>:?<chapter>:<verse>
 	# 3a. <book>:?<chapter>:<verse>[,<verse>]...
+	# 3b. <book>:?<chapter>:<verse>[, <chapter>:<verse>]...
 	# 4. <book>:?<chapter>-<chapter>
 	# 5. <book>:?<chapter>:<verse>-<verse>
 	# 6. <book>:?<chapter>:<verse>-<chapter>:<verse>
@@ -40,7 +41,7 @@ function parseref(ref, arr) {
 	# 9. <book>:?<chapter>/search
 
 	if (match(ref, "^[1-9]?[a-zA-Z ]+")) {
-		# 1, 2, 3, 3a, 4, 5, 6, 8, 9
+		# 1, 2, 3, 3a, 3b, 4, 5, 6, 8, 9
 		arr["book"] = substr(ref, 1, RLENGTH)
 		ref = substr(ref, RLENGTH + 1)
 	} else if (match(ref, "^/")) {
@@ -52,7 +53,7 @@ function parseref(ref, arr) {
 	}
 
 	if (match(ref, "^:?[1-9]+[0-9]*")) {
-		# 2, 3, 3a, 4, 5, 6, 9
+		# 2, 3, 3a, 3b, 4, 5, 6, 9
 		if (sub("^:", "", ref)) {
 			arr["chapter"] = int(substr(ref, 1, RLENGTH - 1))
 			ref = substr(ref, RLENGTH)
@@ -72,7 +73,7 @@ function parseref(ref, arr) {
 	}
 
 	if (match(ref, "^:[1-9]+[0-9]*")) {
-		# 3, 3a, 5, 6
+		# 3, 3a, 3b, 5, 6
 		arr["verse"] = int(substr(ref, 2, RLENGTH - 1))
 		ref = substr(ref, RLENGTH + 1)
 	} else if (match(ref, "^-[1-9]+[0-9]*$")) {
@@ -101,14 +102,39 @@ function parseref(ref, arr) {
 	} else if (ref == "") {
 		# 3
 		return "exact"
-	} else if (match(ref, "^,[1-9]+[0-9]*")) {
+	} else if (match(ref, "^(, ?[1-9]+[0-9]*)+$")) {
 		# 3a
 		arr["verse", arr["verse"]] = 1
 		delete arr["verse"]
+		while (match(ref, "^, ?[1-9]+[0-9]*")) {
+                        if(sub("^, ", "", ref)) {
+			    arr["verse", substr(ref, 1, RLENGTH - 2)] = 1
+			    ref = substr(ref, RLENGTH - 1)
+                        } else {
+			    arr["verse", substr(ref, 2, RLENGTH - 1)] = 1
+			    ref = substr(ref, RLENGTH + 1)
+                        }
+                }
+
+		if (ref != "") {
+			return "unknown"
+		}
+
+		return "exact_set"
+        } else if (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*")) {
+                # 3b
+		arr["chapter:verse", arr["chapter"] ":" arr["verse"]] = 1
+		delete arr["chapter"]
+		delete arr["verse"]
 		do {
-			arr["verse", substr(ref, 2, RLENGTH - 1)] = 1
-			ref = substr(ref, RLENGTH + 1)
-		} while (match(ref, "^,[1-9]+[0-9]*"))
+                        if(sub("^, ", "", ref)) {
+			    arr["chapter:verse", substr(ref, 1, RLENGTH - 2)] = 1
+			    ref = substr(ref, RLENGTH - 1)
+                        } else {
+			    arr["chapter:verse", substr(ref, 2, RLENGTH - 1)] = 1
+			    ref = substr(ref, RLENGTH + 1)
+                        }
+		} while (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*"))
 
 		if (ref != "") {
 			return "unknown"
@@ -159,7 +185,11 @@ function printverse(verse,    word_count, characters_printed) {
 	word_count = split(verse, words, " ")
 	for (i = 1; i <= word_count; i++) {
 		if (characters_printed + length(words[i]) + (characters_printed > 0 ? 1 : 0) > MAX_WIDTH - 8) {
-			printf("\n\t")
+                        if(cross_ref) {
+                            printf("\n")
+                        } else {
+                            printf("\n\t")
+                        }
 			characters_printed = 0
 		}
 		if (characters_printed > 0) {
@@ -174,11 +204,17 @@ function printverse(verse,    word_count, characters_printed) {
 
 function processline() {
 	if (last_book_printed != $2) {
-		print $1
-		last_book_printed = $2
+                if(cross_ref) {
+                    printf("\n")
+                } else {
+                    print $1
+                }
+                last_book_printed = $2
 	}
 
-	printf("%d:%d\t", $4, $5)
+        if (!cross_ref) {
+            printf("%d:%d\t", $4, $5)
+        }
 	printverse($6)
 	outputted_records++
 }
@@ -187,7 +223,7 @@ cmd == "ref" && mode == "exact" && bookmatches($1, $2, p["book"]) && (p["chapter
 	processline()
 }
 
-cmd == "ref" && mode == "exact_set" && bookmatches($1, $2, p["book"]) && (p["chapter"] == "" || $4 == p["chapter"]) && p["verse", $5] {
+cmd == "ref" && mode == "exact_set" && bookmatches($1, $2, p["book"]) && (((p["chapter"] == "" || $4 == p["chapter"]) && p["verse", $5]) || p["chapter:verse", $4 ":" $5]) {
 	processline()
 }
 
