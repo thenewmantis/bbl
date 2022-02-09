@@ -8,6 +8,7 @@ This implementation allows for numerous translations/versions of the Bible to be
 ## Usage
 
 ```
+
 usage: bbl [flags] [bible] [reference...]
 
   Flags:
@@ -15,12 +16,13 @@ usage: bbl [flags] [bible] [reference...]
   -W, --no-line-wrap      no line wrap
   -c, --cat               echo text to STDOUT
   -h, --help              show help
-  Bible:
+  Bibles:
   -d, --douay             Douay-Rheims Bible
   -g, --greek             Greek Bible (Septuagint + SBL NT)
   -j, --jerusalem         New Jerusalem Bible
   -k, --kjv               King James Bible
   -n, --knox              Knox Bible
+  -r, --rsv               Revised Standard Version: Catholic Edition
   -v, --vulgate           Clementine Vulgate
 
   Reference types:
@@ -30,6 +32,8 @@ usage: bbl [flags] [bible] [reference...]
           Individual chapter of a book
       <Book>:<Chapter>:<Verse>[,<Verse>]...
           Individual verse(s) of a specific chapter of a book
+      <Book>:<Chapter>:<Verse>[,<Chapter>:<Verse>]...
+          Individual verses of different chapters of a book
       <Book>:<Chapter>-<Chapter>
           Range of chapters in a book
       <Book>:<Chapter>:<Verse>-<Verse>

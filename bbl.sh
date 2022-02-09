@@ -31,6 +31,7 @@ show_help() {
         echo "  -g, --greek             Greek Bible (Septuagint + SBL NT)"
 	echo "  -j, --jerusalem         New Jerusalem Bible"
 	echo "  -k, --kjv               King James Bible"
+    echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
 	echo "  -n, --knox              Knox Bible"
 	echo "  -v, --vulgate           Clementine Vulgate"
 	echo
@@ -41,6 +42,8 @@ show_help() {
 	echo "          Individual chapter of a book"
 	echo "      <Book>:<Chapter>:<Verse>[,<Verse>]..."
 	echo "          Individual verse(s) of a specific chapter of a book"
+	echo "      <Book>:<Chapter>:<Verse>[,<Chapter>:<Verse>]..."
+	echo "          Individual verses of different chapters of a book"
 	echo "      <Book>:<Chapter>-<Chapter>"
 	echo "          Range of chapters in a book"
 	echo "      <Book>:<Chapter>:<Verse>-<Verse>"
@@ -66,7 +69,7 @@ set_bible() {
     fi
 }
 
-opts="$(getopt -o lWchdgjknv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,vulgate -- "$@")"
+opts="$(getopt -o lWchdgjknrv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
@@ -100,6 +103,9 @@ while [ $# -gt 0 ]; do
                 shift ;;
         -n|--knox)
                 set_bible knx
+                shift ;;
+        -r|--rsv)
+                set_bible rsv
                 shift ;;
         -v|--vulgate)
                 set_bible vul
@@ -139,17 +145,17 @@ fi
 
 crossRef=0
 i=1
-mydir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
+myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
 for version in $BIBLE; do
-    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="$crossRef" "$(get_data bbl.awk)" 2>/dev/null > "${mydir}/${i}-${version}.txt"
+    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="$crossRef" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
     i=$((i + 1))
     crossRef=1
 done
 
-cd "${mydir}"
+cd "${myTempDir}"
 if [ ${crossRef} ]; then
     paste $(ls) -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' | ${PAGER}
 else
-    ${PAGER} "${mydir}/$(ls)"
+    ${PAGER} "${myTempDir}/$(ls)"
 fi
-rm -rf "${mydir}"
+rm -rf "${myTempDir}"
