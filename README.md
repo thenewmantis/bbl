@@ -47,6 +47,13 @@ usage: bbl [flags] [bible] [reference...]
           All verses in a book that match a pattern
       <Book>:<Chapter>/<Search>
           All verses in a chapter of a book that match a pattern
+
+      @ <Number-of-Verses>?"
+          Random verse or assortment of verses from any book/chapter"
+      <Book> @ <Number-of-Verses>?"
+          Random verse or assortment of verses from any chapter in a given book"
+      <Book>:<Chapter> @ <Number-of-Verses>?"
+          Random verse or assortment of verses from the given book:chapter"
 ```
 
 ## Note

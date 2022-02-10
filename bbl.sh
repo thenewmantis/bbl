@@ -31,8 +31,8 @@ show_help() {
         echo "  -g, --greek             Greek Bible (Septuagint + SBL NT)"
 	echo "  -j, --jerusalem         New Jerusalem Bible"
 	echo "  -k, --kjv               King James Bible"
-    echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
 	echo "  -n, --knox              Knox Bible"
+    echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
 	echo "  -v, --vulgate           Clementine Vulgate"
 	echo
 	echo "  Reference types:"
@@ -57,6 +57,13 @@ show_help() {
 	echo "          All verses in a book that match a pattern"
 	echo "      <Book>:<Chapter>/<Search>"
 	echo "          All verses in a chapter of a book that match a pattern"
+    echo
+	echo "      @ <Number-of-Verses>?"
+	echo "          Random verse or assortment of verses from any book/chapter"
+	echo "      <Book> @ <Number-of-Verses>?"
+	echo "          Random verse or assortment of verses from any chapter in a given book"
+	echo "      <Book>:<Chapter> @ <Number-of-Verses>?"
+	echo "          Random verse or assortment of verses from the given book:chapter"
 	exit 2
 }
 
@@ -143,19 +150,33 @@ if [ $# -eq 0 ]; then
 	exit 0
 fi
 
-crossRef=0
-i=1
+i=0
 myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
 for version in $BIBLE; do
-    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="$crossRef" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
+    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
     i=$((i + 1))
-    crossRef=1
 done
 
+oldDir="$(pwd)"
 cd "${myTempDir}"
-if [ ${crossRef} ]; then
+if [ ${i} -gt 1 ]; then
     paste $(ls) -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' | ${PAGER}
 else
-    ${PAGER} "${myTempDir}/$(ls)"
+    myFile="$(ls)"
+    fullPath="${myTempDir}/${myFile}"
+    cd "${oldDir}"
+    lastLine="$(tail -n1 ${fullPath})"
+
+    echo $lastLine | grep -q '~~~RANDOMS:'
+    if [ $? -eq 0 ]; then
+        numberOfVerses=$(echo "${lastLine}" | grep -o '[0-9]*')
+        linesInFile=$(($(wc -l "$fullPath" | awk '{print $1}') - 1))
+        sedCmd=$(shuf -i 1-$linesInFile -n $numberOfVerses | sort -n | tr '\n' ' ' | sed 's/ /p;/g' | sed 's/..$/{p;q}/')
+        sed -n "$sedCmd" "$fullPath" > "${myTempDir}/randomVerses"
+        awk -v cmd=clean "$(get_data bbl.awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${fullPath}"
+    fi
+
+    ${PAGER} "${fullPath}"
+
 fi
 rm -rf "${myTempDir}"

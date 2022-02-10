@@ -8,6 +8,7 @@ BEGIN {
 	FS = "\t"
 
 	MAX_WIDTH = 80
+    NO_LINE_WRAP = ENVIRON["KJV_NOLINEWRAP"] != "" && ENVIRON["KJV_NOLINEWRAP"] != "0"
 	if (ENVIRON["KJV_MAX_WIDTH"] ~ /^[0-9]+$/) {
 		if (int(ENVIRON["KJV_MAX_WIDTH"]) < MAX_WIDTH) {
 			MAX_WIDTH = int(ENVIRON["KJV_MAX_WIDTH"])
@@ -18,6 +19,10 @@ BEGIN {
 		mode = parseref(ref, p)
 		p["book"] = cleanbook(p["book"])
 	}
+}
+
+cmd == "clean" {
+    processline()
 }
 
 cmd == "list" {
@@ -39,21 +44,22 @@ function parseref(ref, arr) {
 	# 7. /<search>
 	# 8. <book>/search
 	# 9. <book>:?<chapter>/search
+    #10. @ <number of verses>?
+    #11. <book> @ <number of verses>?
+    #12. <book>:?<chapter> @ <number of verses>?
 
 	if (match(ref, "^[1-9]?[a-zA-Z ]+")) {
-		# 1, 2, 3, 3a, 3b, 4, 5, 6, 8, 9
+		# 1, 2, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
 		arr["book"] = substr(ref, 1, RLENGTH)
 		ref = substr(ref, RLENGTH + 1)
 	} else if (match(ref, "^/")) {
 		# 7
 		arr["search"] = substr(ref, 2)
 		return "search"
-	} else {
-		return "unknown"
 	}
 
 	if (match(ref, "^:?[1-9]+[0-9]*")) {
-		# 2, 3, 3a, 3b, 4, 5, 6, 9
+		# 2, 3, 3a, 3b, 4, 5, 6, 9, 12
 		if (sub("^:", "", ref)) {
 			arr["chapter"] = int(substr(ref, 1, RLENGTH - 1))
 			ref = substr(ref, RLENGTH)
@@ -68,8 +74,6 @@ function parseref(ref, arr) {
 	} else if (ref == "") {
 		# 1
 		return "exact"
-	} else {
-		return "unknown"
 	}
 
 	if (match(ref, "^:[1-9]+[0-9]*")) {
@@ -87,6 +91,16 @@ function parseref(ref, arr) {
 	} else if (ref == "") {
 		# 2
 		return "exact"
+	} else if (match(ref, "^ *@ *")) {
+		# 10, 11, 12
+        ref = substr(ref, RLENGTH + 1)
+        if (match(ref, "^[1-9][0-9]*")) {
+            arr["numberOfVerses"] = int(ref)
+        } else {
+            arr["numberOfVerses"] = 1
+        }
+        NO_LINE_WRAP = 1
+		return "random"
 	} else {
 		return "unknown"
 	}
@@ -177,7 +191,7 @@ function bookmatches(book, bookabbr, query) {
 }
 
 function printverse(verse,    word_count, characters_printed) {
-	if (ENVIRON["KJV_NOLINEWRAP"] != "" && ENVIRON["KJV_NOLINEWRAP"] != "0") {
+	if (NO_LINE_WRAP) {
 		printf("%s\n", verse)
 		return
 	}
@@ -205,9 +219,9 @@ function printverse(verse,    word_count, characters_printed) {
 function processline() {
 	if (last_book_printed != $2) {
                 if(cross_ref) {
-                    printf("\n")
+                    print("")
                 } else {
-                    print $1
+                    print($1)
                 }
                 last_book_printed = $2
 	}
@@ -221,6 +235,11 @@ function processline() {
 
 cmd == "ref" && mode == "exact" && bookmatches($1, $2, p["book"]) && (p["chapter"] == "" || $4 == p["chapter"]) && (p["verse"] == "" || $5 == p["verse"]) {
 	processline()
+}
+
+cmd == "ref" && mode == "random" && (p["book"] == "" || bookmatches($1, $2, p["book"])) && (p["chapter"] == "" || $4 == p["chapter"]) {
+    print
+    outputted_records++
 }
 
 cmd == "ref" && mode == "exact_set" && bookmatches($1, $2, p["book"]) && (((p["chapter"] == "" || $4 == p["chapter"]) && p["verse", $5]) || p["chapter:verse", $4 ":" $5]) {
@@ -240,7 +259,11 @@ cmd == "ref" && mode == "search" && (p["book"] == "" || bookmatches($1, $2, p["b
 }
 
 END {
-	if (cmd == "ref" && outputted_records == 0) {
-		print "Unknown reference: " ref
+	if (cmd == "ref") {
+        if (outputted_records == 0) {
+		    print "Unknown reference: " ref
+        } else if (mode == "random") {
+            printf("~~~RANDOMS: %d\n", p["numberOfVerses"])
+        }
 	}
 }
