@@ -130,6 +130,7 @@ if [ $? -eq 0 ]; then
         for b in $BIBLE; do
             versions=$(( versions + 1 ))
         done
+        [ $versions -eq 0 ] && versions=1 # For interactive mode
         spaceBetween=$(( 8 * (versions - 1)))
         export KJV_MAX_WIDTH="$(( (cols - spaceBetween) / versions ))"
 fi
