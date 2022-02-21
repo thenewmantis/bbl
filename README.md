@@ -41,12 +41,15 @@ usage: bbl [flags] [bible] [reference...]
       <Book>:<Chapter>:<Verse>-<Chapter>:<Verse>
           Range of chapters and verses in a book
 
-      /<Search>
+      /~?<Search>
           All verses that match a pattern
-      <Book>/<Search>
+      <Book>/~?<Search>
           All verses in a book that match a pattern
-      <Book>:<Chapter>/<Search>
+      <Book>:<Chapter>/~?<Search>
           All verses in a chapter of a book that match a pattern
+      In searches, the optional ~ indicates that the search should be approximate:
+      Case and accent marks will be disregarded. Note that this will often take
+      much longer than an exact search
 
       @ <Number-of-Verses>?"
           Random verse or assortment of verses from any book/chapter"
@@ -59,7 +62,7 @@ usage: bbl [flags] [bible] [reference...]
 ## Note
 
 The default behaviour (without a flag to specify the Bible version) is to print from the Knox Bible.
-This is easy to change by changing line 7 of bbl.sh (BIBLE=knx) to reflect the three-letter abbreviation of your translation of choice.
+This is easy to change by changing the line before the default of the main case statement (close to line 125) of bbl.sh (set_bible knx) to reflect the three-letter abbreviation of your translation of choice.
 One can easily extend this program ad nauseam by simply adding new .tsv files and updating the getopt and the case statement in bbl.sh accordingly.
 
 ## Install

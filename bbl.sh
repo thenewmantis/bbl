@@ -51,12 +51,15 @@ show_help() {
 	echo "      <Book>:<Chapter>:<Verse>-<Chapter>:<Verse>"
 	echo "          Range of chapters and verses in a book"
 	echo
-	echo "      /<Search>"
+	echo "      /~?<Search>"
 	echo "          All verses that match a pattern"
-	echo "      <Book>/<Search>"
+	echo "      <Book>/~?<Search>"
 	echo "          All verses in a book that match a pattern"
-	echo "      <Book>:<Chapter>/<Search>"
+	echo "      <Book>:<Chapter>/~?<Search>"
 	echo "          All verses in a chapter of a book that match a pattern"
+	echo "      In searches, the optional ~ indicates that the search should be approximate:"
+	echo "      Case and accent marks will be disregarded. Note that this will often take"
+	echo "      much longer than an exact search"
     echo
 	echo "      @ <Number-of-Verses>?"
 	echo "          Random verse or assortment of verses from any book/chapter"
@@ -76,6 +79,7 @@ set_bible() {
     fi
 }
 
+lang="en" # Language of text being used--most are English
 opts="$(getopt -o lWchdgjknrv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
@@ -101,6 +105,7 @@ while [ $# -gt 0 ]; do
                 shift ;;
         -g|--greek)
                 set_bible grb
+                lang="el"
                 shift ;;
         -j|--jerusalem)
                 set_bible njb
@@ -116,6 +121,7 @@ while [ $# -gt 0 ]; do
                 shift ;;
         -v|--vulgate)
                 set_bible vul
+                lang="la"
                 shift ;;
          *)
                 # Use Knox Bible if none is specified in command line options
@@ -142,11 +148,11 @@ if [ $# -eq 0 ]; then
 
 	# Interactive mode
 	while true; do
-		printf "knx> "
+		printf "$BIBLE> "
 		if ! read -r ref; then
 			break
 		fi
-		get_data knx.tsv | awk -v cmd=ref -v ref="$ref" "$(get_data bbl.awk)" | ${PAGER}
+		get_data "$BIBLE.tsv" | awk -v cmd=ref -v ref="$ref" "$(get_data bbl.awk)" | ${PAGER}
 	done
 	exit 0
 fi
@@ -154,7 +160,7 @@ fi
 i=0
 myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
 for version in $BIBLE; do
-    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
+    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
     i=$((i + 1))
 done
 

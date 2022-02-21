@@ -41,9 +41,9 @@ function parseref(ref, arr) {
 	# 4. <book>:?<chapter>-<chapter>
 	# 5. <book>:?<chapter>:<verse>-<verse>
 	# 6. <book>:?<chapter>:<verse>-<chapter>:<verse>
-	# 7. /<search>
-	# 8. <book>/search
-	# 9. <book>:?<chapter>/search
+	# 7. /~?<search>
+	# 8. <book>/~?search
+	# 9. <book>:?<chapter>/~?search
     #10. @ <number of verses>?
     #11. <book> @ <number of verses>?
     #12. <book>:?<chapter> @ <number of verses>?
@@ -52,10 +52,15 @@ function parseref(ref, arr) {
 		# 1, 2, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
 		arr["book"] = substr(ref, 1, RLENGTH)
 		ref = substr(ref, RLENGTH + 1)
-	} else if (match(ref, "^/")) {
+	} else if (sub("^ */ *", "", ref)) {
 		# 7
-		arr["search"] = substr(ref, 2)
-		return "search"
+        if (sub("^~ *", "", ref)) {
+            arr["search"] = roughpattern(ref)
+            return "rough_search"
+        } else {
+            arr["search"] = ref
+            return "search"
+        }
 	}
 
 	if (match(ref, "^:?[1-9]+[0-9]*")) {
@@ -67,10 +72,15 @@ function parseref(ref, arr) {
 			arr["chapter"] = int(substr(ref, 1, RLENGTH))
 			ref = substr(ref, RLENGTH + 1)
 		}
-	} else if (match(ref, "^/")) {
+	} else if (sub("^ */ *", "", ref)) {
 		# 8
-		arr["search"] = substr(ref, 2)
-		return "search"
+        if (sub("^~ *", "", ref)) {
+            arr["search"] = roughpattern(ref)
+            return "rough_search"
+        } else {
+            arr["search"] = ref
+            return "search"
+        }
 	} else if (ref == "") {
 		# 1
 		return "exact"
@@ -84,10 +94,15 @@ function parseref(ref, arr) {
 		# 4
 		arr["chapter_end"] = int(substr(ref, 2))
 		return "range"
-	} else if (match(ref, "^/")) {
+	} else if (sub("^ */ *", "", ref)) {
 		# 9
-		arr["search"] = substr(ref, 2)
-		return "search"
+        if (sub("^~ *", "", ref)) {
+            arr["search"] = roughpattern(ref)
+            return "rough_search"
+        } else {
+            arr["search"] = ref
+            return "search"
+        }
 	} else if (ref == "") {
 		# 2
 		return "exact"
@@ -190,6 +205,29 @@ function bookmatches(book, bookabbr, query) {
 	}
 }
 
+function roughpattern(regex) {
+    # TODO Can mess with search pattern if regex is used on command line
+    regex = tolower(regex)
+    switch(lang) {
+        case "el":
+            polytonic["α"] = "[αάἀ-ἆὰᾀ-ᾆᾳ-ᾷ]"
+            polytonic["ε"] = "[εέἐ-ἕὲ]"
+            polytonic["η"] = "[ηήἠ-ἧὴᾐ-ᾗῃ-ῇ]"
+            polytonic["ι"] = "[ιίΐϊἰ-ἷὶῒ-ῖ]"
+            polytonic["ο"] = "[οόὀ-ὅὸ]"
+            polytonic["υ"] = "[υΰϋύὐ-ὗὺῢῦ]"
+            polytonic["ω"] = "[ωώὠ-ὧὼᾠ-ᾧῳ-ῷ]"
+            for (letter in polytonic) {
+                gsub(letter, polytonic[letter], regex)
+            }
+            break
+        case "la":
+            gsub("e", "[eë]", regex)
+            break
+    }
+    return regex
+}
+
 function printverse(verse,    word_count, characters_printed) {
 	if (NO_LINE_WRAP) {
 		printf("%s\n", verse)
@@ -254,7 +292,7 @@ cmd == "ref" && mode == "range_ext" && bookmatches($1, $2, p["book"]) && (($4 ==
 	processline()
 }
 
-cmd == "ref" && mode == "search" && (p["book"] == "" || bookmatches($1, $2, p["book"])) && (p["chapter"] == "" || $4 == p["chapter"]) && match(tolower($6), tolower(p["search"])) {
+cmd == "ref" && (mode == "search" || mode == "rough_search") && (p["book"] == "" || bookmatches($1, $2, p["book"])) && (p["chapter"] == "" || $4 == p["chapter"]) && match(mode == "rough_search" ? tolower($6) : $6, p["search"]) {
 	processline()
 }
 
