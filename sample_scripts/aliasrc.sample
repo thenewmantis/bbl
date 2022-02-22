@@ -1,0 +1,9 @@
+# Bible
+alias \
+        drb="bbl --douay" \
+        grb="bbl --greek" \
+        njb="bbl --jerusalem" \
+        knx="bbl --knox" \
+        kjv="bbl --kjv" \
+        rsv="bbl --rsv" \
+        vul="bbl --vulgate"

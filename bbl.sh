@@ -80,16 +80,16 @@ set_bible() {
 }
 
 lang="en" # Language of text being used--most are English
+list=0
 opts="$(getopt -o lWchdgjknrv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
         --)
-                shift
-                break ;;
+                shift ;;
         -l|--list)
                 # List all book names with their abbreviations
-                get_data knx.tsv | awk -v cmd=list "$(get_data bbl.awk)"
+                list=1
                 exit ;;
         -W|--no-line-wrap)
                 export KJV_NOLINEWRAP=1
@@ -129,6 +129,13 @@ while [ $# -gt 0 ]; do
                 break ;;
     esac
 done
+
+if [ $list -eq 1 ]; then
+    for version in $BIBLE; do
+        get_data ${version}.tsv | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
+    done
+    exit 0
+fi
 
 cols=$(tput cols 2>/dev/null)
 if [ $? -eq 0 ]; then
