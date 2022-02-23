@@ -32,7 +32,7 @@ show_help() {
 	echo "  -j, --jerusalem         New Jerusalem Bible"
 	echo "  -k, --kjv               King James Bible"
 	echo "  -n, --knox              Knox Bible"
-    echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
+        echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
 	echo "  -v, --vulgate           Clementine Vulgate"
 	echo
 	echo "  Reference types:"
@@ -86,7 +86,8 @@ eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
         --)
-                shift ;;
+                shift
+                break;;
         -l|--list)
                 # List all book names with their abbreviations
                 list=1
