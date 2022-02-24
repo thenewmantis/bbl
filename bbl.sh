@@ -4,6 +4,7 @@
 
 SELF="$0"
 BIBLE=""
+DEFAULT_BIBLE="knx" # Use Knox Bible if none is specified in command line options
 
 get_data() {
 	sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
@@ -91,7 +92,7 @@ while [ $# -gt 0 ]; do
         -l|--list)
                 # List all book names with their abbreviations
                 list=1
-                exit ;;
+                shift ;;
         -W|--no-line-wrap)
                 export KJV_NOLINEWRAP=1
                 shift ;;
@@ -124,18 +125,14 @@ while [ $# -gt 0 ]; do
                 set_bible vul
                 lang="la"
                 shift ;;
-         *)
-                # Use Knox Bible if none is specified in command line options
-                set_bible knx
-                break ;;
     esac
 done
 
+[ -z "$BIBLE" ] && set_bible $DEFAULT_BIBLE
+
 if [ $list -eq 1 ]; then
-    for version in $BIBLE; do
-        get_data ${version}.tsv | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
-    done
-    exit 0
+    get_data $(echo ${BIBLE} | cut -d " " -f 1).tsv | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
+    exit
 fi
 
 cols=$(tput cols 2>/dev/null)
@@ -144,7 +141,6 @@ if [ $? -eq 0 ]; then
         for b in $BIBLE; do
             versions=$(( versions + 1 ))
         done
-        [ $versions -eq 0 ] && versions=1 # For interactive mode
         spaceBetween=$(( 8 * (versions - 1)))
         export KJV_MAX_WIDTH="$(( (cols - spaceBetween) / versions ))"
 fi
@@ -155,12 +151,13 @@ if [ $# -eq 0 ]; then
 	fi
 
 	# Interactive mode
+        b="$(echo $BIBLE | cut -d ' ' -f 1)"
 	while true; do
-		printf "$BIBLE> "
+		printf "$b> "
 		if ! read -r ref; then
 			break
 		fi
-		get_data "$BIBLE.tsv" | awk -v cmd=ref -v ref="$ref" "$(get_data bbl.awk)" | ${PAGER}
+		get_data "$b.tsv" | awk -v cmd=ref -v ref="$ref" "$(get_data bbl.awk)" | ${PAGER}
 	done
 	exit 0
 fi

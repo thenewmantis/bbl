@@ -35,151 +35,169 @@ cmd == "list" {
 function parseref(ref, arr) {
 	# 1. <book>
 	# 2. <book>:?<chapter>
+	# 2a. <book>:?<chapter>[, ?<chapter>]...
 	# 3. <book>:?<chapter>:<verse>
 	# 3a. <book>:?<chapter>:<verse>[, ?<verse>]...
 	# 3b. <book>:?<chapter>:<verse>[, ?<chapter>:<verse>]...
 	# 4. <book>:?<chapter>-<chapter>
 	# 5. <book>:?<chapter>:<verse>-<verse>
-	# 6. <book>:?<chapter>:<verse>-<chapter>:<verse>
+	# 6. <book>:?<chapter>[:<verse>]-<chapter>:<verse>
 	# 7. /~?<search>
 	# 8. <book>/~?search
 	# 9. <book>:?<chapter>/~?search
-    #10. @ <number of verses>?
-    #11. <book> @ <number of verses>?
-    #12. <book>:?<chapter> @ <number of verses>?
+        #10. @ <number of verses>?
+        #11. <book> @ <number of verses>?
+        #12. <book>:?<chapter> @ <number of verses>?
 
 	if (match(ref, "^[1-9]?[a-zA-Z ]+")) {
-		# 1, 2, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
-		arr["book"] = substr(ref, 1, RLENGTH)
-		ref = substr(ref, RLENGTH + 1)
+            # 1, 2, 2a, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
+            arr["book"] = substr(ref, 1, RLENGTH)
+            ref = substr(ref, RLENGTH + 1)
 	} else if (sub("^ */ *", "", ref)) {
-		# 7
-        if (sub("^~ *", "", ref)) {
-            arr["search"] = roughpattern(ref)
-            return "rough_search"
-        } else {
-            arr["search"] = ref
-            return "search"
-        }
+            # 7
+            if (sub("^~ *", "", ref)) {
+                arr["search"] = roughpattern(ref)
+                return "rough_search"
+            } else {
+                arr["search"] = ref
+                return "search"
+            }
 	}
 
 	if (match(ref, "^:?[1-9]+[0-9]*")) {
-		# 2, 3, 3a, 3b, 4, 5, 6, 9, 12
-		if (sub("^:", "", ref)) {
-			arr["chapter"] = int(substr(ref, 1, RLENGTH - 1))
-			ref = substr(ref, RLENGTH)
-		} else {
-			arr["chapter"] = int(substr(ref, 1, RLENGTH))
-			ref = substr(ref, RLENGTH + 1)
-		}
+            # 2, 2a, 3, 3a, 3b, 4, 5, 6, 9, 12
+            if (sub("^:", "", ref)) {
+                    arr["chapter"] = int(substr(ref, 1, RLENGTH - 1))
+                    ref = substr(ref, RLENGTH)
+            } else {
+                    arr["chapter"] = int(substr(ref, 1, RLENGTH))
+                    ref = substr(ref, RLENGTH + 1)
+            }
 	} else if (sub("^ */ *", "", ref)) {
-		# 8
-        if (sub("^~ *", "", ref)) {
-            arr["search"] = roughpattern(ref)
-            return "rough_search"
-        } else {
-            arr["search"] = ref
-            return "search"
-        }
+            # 8
+            if (sub("^~ *", "", ref)) {
+                arr["search"] = roughpattern(ref)
+                return "rough_search"
+            } else {
+                arr["search"] = ref
+                return "search"
+            }
 	} else if (ref == "") {
-		# 1
-		return "exact"
+            # 1
+            return "exact"
 	}
 
 	if (match(ref, "^:[1-9]+[0-9]*")) {
-		# 3, 3a, 3b, 5, 6
-		arr["verse"] = int(substr(ref, 2, RLENGTH - 1))
-		ref = substr(ref, RLENGTH + 1)
+            # 3, 3a, 3b, 5, 6
+            arr["verse"] = int(substr(ref, 2, RLENGTH - 1))
+            ref = substr(ref, RLENGTH + 1)
 	} else if (match(ref, "^-[1-9]+[0-9]*$")) {
-		# 4
-		arr["chapter_end"] = int(substr(ref, 2))
-		return "range"
+            # 4
+            arr["chapter_end"] = int(substr(ref, 2))
+            return "range"
 	} else if (sub("^ */ *", "", ref)) {
-		# 9
-        if (sub("^~ *", "", ref)) {
-            arr["search"] = roughpattern(ref)
-            return "rough_search"
-        } else {
-            arr["search"] = ref
-            return "search"
-        }
+            # 9
+            if (sub("^~ *", "", ref)) {
+                arr["search"] = roughpattern(ref)
+                return "rough_search"
+            } else {
+                arr["search"] = ref
+                return "search"
+            }
 	} else if (ref == "") {
-		# 2
-		return "exact"
+            # 2
+            return "exact"
+	} else if (match(ref, "^(, ?[1-9]+[0-9]*)+$")) {
+            # 2a
+            arr["chapter", arr["chapter"]] = 1
+            delete arr["chapter"]
+            while (match(ref, "^, ?[1-9]+[0-9]*")) {
+                    if(sub("^, ", "", ref)) {
+                        arr["chapter", substr(ref, 1, RLENGTH - 2)] = 1
+                        ref = substr(ref, RLENGTH - 1)
+                    } else {
+                        arr["chapter", substr(ref, 2, RLENGTH - 1)] = 1
+                        ref = substr(ref, RLENGTH + 1)
+                    }
+            }
+
+            if (ref != "") {
+                    return "unknown"
+            }
+
+            return "exact_ch_set"
 	} else if (match(ref, "^ *@ *")) {
-		# 10, 11, 12
-        ref = substr(ref, RLENGTH + 1)
-        if (match(ref, "^[1-9][0-9]*")) {
-            arr["numberOfVerses"] = int(ref)
-        } else {
-            arr["numberOfVerses"] = 1
-        }
-        NO_LINE_WRAP = 1
-		return "random"
-	} else {
-		return "unknown"
+            # 10, 11, 12
+            ref = substr(ref, RLENGTH + 1)
+            if (match(ref, "^[1-9][0-9]*")) {
+                arr["numberOfVerses"] = int(ref)
+            } else {
+                arr["numberOfVerses"] = 1
+            }
+            NO_LINE_WRAP = 1
+                    return "random"
 	}
 
 	if (match(ref, "^-[1-9]+[0-9]*$")) {
-		# 5
-		arr["verse_end"] = int(substr(ref, 2))
-		return "range"
+            # 5
+            arr["verse_end"] = int(substr(ref, 2))
+            return "range"
 	} else if (match(ref, "-[1-9]+[0-9]*")) {
-		# 6
-		arr["chapter_end"] = int(substr(ref, 2, RLENGTH - 1))
-		ref = substr(ref, RLENGTH + 1)
+            # 6
+            arr["chapter_end"] = int(substr(ref, 2, RLENGTH - 1))
+            ref = substr(ref, RLENGTH + 1)
 	} else if (ref == "") {
-		# 3
-		return "exact"
+            # 3
+            return "exact"
 	} else if (match(ref, "^(, ?[1-9]+[0-9]*)+$")) {
-		# 3a
-		arr["verse", arr["verse"]] = 1
-		delete arr["verse"]
-		while (match(ref, "^, ?[1-9]+[0-9]*")) {
-                        if(sub("^, ", "", ref)) {
-			    arr["verse", substr(ref, 1, RLENGTH - 2)] = 1
-			    ref = substr(ref, RLENGTH - 1)
-                        } else {
-			    arr["verse", substr(ref, 2, RLENGTH - 1)] = 1
-			    ref = substr(ref, RLENGTH + 1)
-                        }
-                }
+            # 3a
+            arr["verse", arr["verse"]] = 1
+            delete arr["verse"]
+            while (match(ref, "^, ?[1-9]+[0-9]*")) {
+                    if(sub("^, ", "", ref)) {
+                        arr["verse", substr(ref, 1, RLENGTH - 2)] = 1
+                        ref = substr(ref, RLENGTH - 1)
+                    } else {
+                        arr["verse", substr(ref, 2, RLENGTH - 1)] = 1
+                        ref = substr(ref, RLENGTH + 1)
+                    }
+            }
 
-		if (ref != "") {
-			return "unknown"
-		}
+            if (ref != "") {
+                    return "unknown"
+            }
 
-		return "exact_set"
+            return "exact_set"
         } else if (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*")) {
-                # 3b
-		arr["chapter:verse", arr["chapter"] ":" arr["verse"]] = 1
-		delete arr["chapter"]
-		delete arr["verse"]
-		do {
-                        if(sub("^, ", "", ref)) {
-			    arr["chapter:verse", substr(ref, 1, RLENGTH - 2)] = 1
-			    ref = substr(ref, RLENGTH - 1)
-                        } else {
-			    arr["chapter:verse", substr(ref, 2, RLENGTH - 1)] = 1
-			    ref = substr(ref, RLENGTH + 1)
-                        }
-		} while (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*"))
+            # 3b
+            arr["chapter:verse", arr["chapter"] ":" arr["verse"]] = 1
+            delete arr["chapter"]
+            delete arr["verse"]
+            do {
+                    if(sub("^, ", "", ref)) {
+                        arr["chapter:verse", substr(ref, 1, RLENGTH - 2)] = 1
+                        ref = substr(ref, RLENGTH - 1)
+                    } else {
+                        arr["chapter:verse", substr(ref, 2, RLENGTH - 1)] = 1
+                        ref = substr(ref, RLENGTH + 1)
+                    }
+            } while (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*"))
 
-		if (ref != "") {
-			return "unknown"
-		}
+            if (ref != "") {
+                    return "unknown"
+            }
 
-		return "exact_set"
+            return "exact_set"
 	} else {
-		return "unknown"
+            return "unknown"
 	}
 
 	if (match(ref, "^:[1-9]+[0-9]*$")) {
-		# 6
-		arr["verse_end"] = int(substr(ref, 2))
-		return "range_ext"
+            # 6
+            arr["verse_end"] = int(substr(ref, 2))
+            return "range_ext"
 	} else {
-		return "unknown"
+            return "unknown"
 	}
 }
 
@@ -278,6 +296,10 @@ cmd == "ref" && mode == "exact" && bookmatches($1, $2, p["book"]) && (p["chapter
 cmd == "ref" && mode == "random" && (p["book"] == "" || bookmatches($1, $2, p["book"])) && (p["chapter"] == "" || $4 == p["chapter"]) {
     print
     outputted_records++
+}
+
+cmd == "ref" && mode == "exact_ch_set" && bookmatches($1, $2, p["book"]) && p["chapter", $4] {
+	processline()
 }
 
 cmd == "ref" && mode == "exact_set" && bookmatches($1, $2, p["book"]) && (((p["chapter"] == "" || $4 == p["chapter"]) && p["verse", $5]) || p["chapter:verse", $4 ":" $5]) {
