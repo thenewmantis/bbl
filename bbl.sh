@@ -98,7 +98,7 @@ while [ $# -gt 0 ]; do
                 shift ;;
         -c|--cat)
                 # Cat text to standard output instead of using $PAGER
-                PAGER=cat
+                PAGER="cat"
                 shift ;;
         -h|--help)
                 show_help ;;
@@ -131,12 +131,11 @@ done
 [ -z "$BIBLE" ] && set_bible $DEFAULT_BIBLE
 
 if [ $list -eq 1 ]; then
-    get_data $(echo ${BIBLE} | cut -d " " -f 1).tsv | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
+    get_data "$(echo "${BIBLE}" | cut -d " " -f 1).tsv" | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
     exit
 fi
 
-cols=$(tput cols 2>/dev/null)
-if [ $? -eq 0 ]; then
+if cols=$(tput cols 2>/dev/null); then
         versions=0
         for b in $BIBLE; do
             versions=$(( versions + 1 ))
@@ -151,9 +150,9 @@ if [ $# -eq 0 ]; then
 	fi
 
 	# Interactive mode
-        b="$(echo $BIBLE | cut -d ' ' -f 1)"
+        b="$(echo "$BIBLE" | cut -d ' ' -f 1)"
 	while true; do
-		printf "$b> "
+		printf '%s> ' "$b"
 		if ! read -r ref; then
 			break
 		fi
@@ -163,27 +162,26 @@ if [ $# -eq 0 ]; then
 fi
 
 i=0
-myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename $0).XXXXXXXXXXXX")
+myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename "$0").XXXXXXXXXXXX")
 for version in $BIBLE; do
-    get_data ${version}.tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
+    get_data "${version}".tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
     i=$((i + 1))
 done
 
 oldDir="$(pwd)"
-cd "${myTempDir}"
+cd "${myTempDir}" || exit 1
 if [ ${i} -gt 1 ]; then
-    paste $(ls) -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' | ${PAGER}
+    paste "$(ls)" -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' | ${PAGER}
 else
     myFile="$(ls)"
     fullPath="${myTempDir}/${myFile}"
-    cd "${oldDir}"
-    lastLine="$(tail -n1 ${fullPath})"
+    cd "${oldDir}" || exit 1
+    lastLine="$(tail -n1 "${fullPath}")"
 
-    echo $lastLine | grep -q '~~~RANDOMS:'
-    if [ $? -eq 0 ]; then
+    if echo "$lastLine" | grep -q '~~~RANDOMS:'; then
         numberOfVerses=$(echo "${lastLine}" | grep -o '[0-9]*')
         linesInFile=$(($(wc -l "$fullPath" | awk '{print $1}') - 1))
-        sedCmd=$(shuf -i 1-$linesInFile -n $numberOfVerses | sort -n | tr '\n' ' ' | sed 's/ /p;/g' | sed 's/..$/{p;q}/')
+        sedCmd=$(shuf -i 1-$linesInFile -n "$numberOfVerses" | sort -n | tr '\n' ' ' | sed 's/ /p;/g' | sed 's/..$/{p;q}/')
         sed -n "$sedCmd" "$fullPath" > "${myTempDir}/randomVerses"
         awk -v cmd=clean "$(get_data bbl.awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${fullPath}"
     fi
