@@ -30,6 +30,7 @@ show_help() {
         echo "  Bibles:"
 	echo "  -d, --douay             Douay-Rheims Bible"
         echo "  -g, --greek             Greek Bible (Septuagint + SBL NT)"
+	echo "  -H, --hebrew            The Bible in Hebrew"
 	echo "  -j, --jerusalem         New Jerusalem Bible"
 	echo "  -k, --kjv               King James Bible"
 	echo "  -n, --knox              Knox Bible"
@@ -82,7 +83,7 @@ set_bible() {
 
 lang="en" # Language of text being used--most are English
 list=0
-opts="$(getopt -o lWchdgjknrv -l list,no-line-wrap,cat,help,douay,greek,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
+opts="$(getopt -o lWchdgHjknrv -l list,no-line-wrap,cat,help,douay,greek,hebrew,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
@@ -108,6 +109,10 @@ while [ $# -gt 0 ]; do
         -g|--greek)
                 set_bible grb
                 lang="el"
+                shift ;;
+        -H|--hebrew)
+                set_bible heb
+                lang="he"
                 shift ;;
         -j|--jerusalem)
                 set_bible njb
