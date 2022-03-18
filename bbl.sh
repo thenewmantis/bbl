@@ -25,6 +25,11 @@ show_help() {
         echo "  Flags:"
 	echo "  -l, --list              list books"
 	echo "  -W, --no-line-wrap      no line wrap"
+	echo "  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter"
+    echo "  -C, --no-ch-numbers     no chapter headings either (implies -V)"
+    echo "  -T, --no-title          book title is not printed"
+    echo "  -B, --no-verse-break    No linebreaks at the end of each verse--each chapter runs like a continuous paragraph. Currently implies -V (I am working on changing that)"
+	echo "  -N, --no-format         Equivalent to -WCTB"
         echo "  -c, --cat               echo text to STDOUT"
 	echo "  -h, --help              show help"
         echo "  Bibles:"
@@ -82,8 +87,8 @@ set_bible() {
 }
 
 lang="en" # Language of text being used--most are English
-list=0
-opts="$(getopt -o lWchdgHjknrv -l list,no-line-wrap,cat,help,douay,greek,hebrew,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
+list=""
+opts="$(getopt -o lWVCTBNchdgHjknrv -l list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
@@ -96,6 +101,21 @@ while [ $# -gt 0 ]; do
                 shift ;;
         -W|--no-line-wrap)
                 export KJV_NOLINEWRAP=1
+                shift ;;
+        -V|--no-verse-numbers)
+                export KJV_NOVERSENUMBERS=1
+                shift ;;
+        -C|--no-chapter-headings)
+                export KJV_NOCHAPTERHEADINGS=1
+                shift ;;
+        -T|--no-title)
+                export KJV_NOTITLE=1
+                shift ;;
+        -B|--no-verse-break)
+                export KJV_NOVERSEBREAK=1
+                shift ;;
+        -N|--no-format)
+                export KJV_NOFORMAT=1
                 shift ;;
         -c|--cat)
                 # Cat text to standard output instead of using $PAGER
@@ -113,6 +133,8 @@ while [ $# -gt 0 ]; do
         -H|--hebrew)
                 set_bible heb
                 lang="he"
+                # Hebrew is read right-to-left and needs to be reversed
+                r2l="y"
                 shift ;;
         -j|--jerusalem)
                 set_bible njb
@@ -133,9 +155,12 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# TODO cross-referencing is not yet available with Hebrew
+echo "$BIBLE" | grep -q 'heb' && BIBLE='heb'
+
 [ -z "$BIBLE" ] && set_bible $DEFAULT_BIBLE
 
-if [ $list -eq 1 ]; then
+if [ "$list" ]; then
     get_data "$(echo "${BIBLE}" | cut -d " " -f 1).tsv" | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
     exit
 fi
@@ -155,7 +180,7 @@ if [ $# -eq 0 ]; then
 	fi
 
 	# Interactive mode
-        b="$(echo "$BIBLE" | cut -d ' ' -f 1)"
+    b="$(echo "$BIBLE" | cut -d ' ' -f 1)"
 	while true; do
 		printf '%s> ' "$b"
 		if ! read -r ref; then
@@ -169,29 +194,31 @@ fi
 i=0
 myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename "$0").XXXXXXXXXXXX")
 for version in $BIBLE; do
-    get_data "${version}".tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "${myTempDir}/${i}-${version}.txt"
+    filename="${myTempDir}/${i}-${version}.txt"
+    get_data "${version}".tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "$filename"
     i=$((i + 1))
 done
 
-oldDir="$(pwd)"
-cd "${myTempDir}" || exit 1
 if [ ${i} -gt 1 ]; then
-    paste "$(ls)" -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' | ${PAGER}
+    filename="${myTempDir}/crossref.txt"
+    paste "$(ls "$myTempDir")" -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' > "$filename"
+    # Remove all files in the tmpdir with a hyphen in the name, i.e. everything except the file we just created
+    rm "$myTempDir"/*-*
 else
-    myFile="$(ls)"
-    fullPath="${myTempDir}/${myFile}"
-    cd "${oldDir}" || exit 1
-    lastLine="$(tail -n1 "${fullPath}")"
+    lastLine="$(tail -n1 "${filename}")"
 
     if echo "$lastLine" | grep -q '~~~RANDOMS:'; then
         numberOfVerses=$(echo "${lastLine}" | grep -o '[0-9]*')
-        linesInFile=$(($(wc -l "$fullPath" | awk '{print $1}') - 1))
+        linesInFile=$(($(wc -l "$filename" | awk '{print $1}') - 1))
         sedCmd=$(shuf -i 1-$linesInFile -n "$numberOfVerses" | sort -n | tr '\n' ' ' | sed 's/ /p;/g' | sed 's/..$/{p;q}/')
-        sed -n "$sedCmd" "$fullPath" > "${myTempDir}/randomVerses"
-        awk -v cmd=clean "$(get_data bbl.awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${fullPath}"
+        sed -n "$sedCmd" "$filename" > "${myTempDir}/randomVerses"
+        awk -v cmd=clean "$(get_data bbl.awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${filename}"
     fi
 
-    ${PAGER} "${fullPath}"
-
+    if [ "$r2l" ]; then
+        rev "${filename}" | $PAGER
+    else
+        $PAGER "$filename"
+    fi
 fi
 rm -rf "${myTempDir}"

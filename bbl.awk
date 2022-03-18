@@ -8,7 +8,20 @@ BEGIN {
 	FS = "\t"
 
 	MAX_WIDTH = 80
-    NO_LINE_WRAP = ENVIRON["KJV_NOLINEWRAP"] != "" && ENVIRON["KJV_NOLINEWRAP"] != "0"
+    NO_LINE_WRAP = envbool("KJV_NOLINEWRAP")
+    NO_VERSE_NUMBERS = envbool("KJV_NOVERSENUMBERS")
+    NO_CHAPTER_HEADINGS = envbool("KJV_NOCHAPTERHEADINGS")
+    NO_TITLE = envbool("KJV_NOTITLE")
+    NO_VERSE_BREAK = envbool("KJV_NOVERSEBREAK")
+    if (NO_VERSE_BREAK) {
+        NO_VERSE_NUMBERS = 1
+    }
+    if(envbool("KJV_NOFORMAT")) {
+        NO_LINE_WRAP = 1
+        NO_CHAPTER_HEADINGS = 1
+        NO_TITLE = 1
+        NO_VERSE_BREAK = 1
+    }
 	if (ENVIRON["KJV_MAX_WIDTH"] ~ /^[0-9]+$/) {
 		if (int(ENVIRON["KJV_MAX_WIDTH"]) < MAX_WIDTH) {
 			MAX_WIDTH = int(ENVIRON["KJV_MAX_WIDTH"])
@@ -30,6 +43,10 @@ cmd == "list" {
 		printf("%s (%s)\n", $1, $2)
 		seen_books[$2] = 1
 	}
+}
+
+function envbool(str){
+    return ENVIRON[str] != "" && ENVIRON[str] != "0"
 }
 
 function parseref(ref, arr) {
@@ -135,7 +152,7 @@ function parseref(ref, arr) {
                 arr["numberOfVerses"] = 1
             }
             NO_LINE_WRAP = 1
-                    return "random"
+            return "random"
 	}
 
 	if (match(ref, "^-[1-9]+[0-9]*$")) {
@@ -248,18 +265,22 @@ function roughpattern(regex) {
 
 function printverse(verse,    word_count, characters_printed) {
 	if (NO_LINE_WRAP) {
-		printf("%s\n", verse)
+        if (NO_VERSE_BREAK) {
+            printf("%s ", verse)
+        } else {
+            printf("%s\n", verse)
+        }
 		return
 	}
 
 	word_count = split(verse, words, " ")
 	for (i = 1; i <= word_count; i++) {
 		if (characters_printed + length(words[i]) + (characters_printed > 0 ? 1 : 0) > MAX_WIDTH - 8) {
-                        if(cross_ref) {
-                            printf("\n")
-                        } else {
-                            printf("\n\t")
-                        }
+            if(cross_ref || NO_VERSE_BREAK) {
+                printf("\n")
+            } else {
+                printf("\n\t")
+            }
 			characters_printed = 0
 		}
 		if (characters_printed > 0) {
@@ -269,22 +290,51 @@ function printverse(verse,    word_count, characters_printed) {
 		printf("%s", words[i])
 		characters_printed += length(words[i])
 	}
-	printf("\n")
+    if (NO_VERSE_BREAK) {
+        printf(" ")
+    } else {
+        printf("\n")
+    }
 }
 
 function processline() {
-	if (last_book_printed != $2) {
-                if(cross_ref) {
-                    print("")
-                } else {
-                    print($1)
-                }
-                last_book_printed = $2
+    newbook = (last_book_printed != $2)
+	if (newbook) {
+        if(cross_ref) {
+            print("")
+        } else if (NO_TITLE) {
+            if (last_book_printed) {
+                print("")
+            }
+        } else {
+            print($1)
+        }
+        last_book_printed = $2
 	}
 
-        if (!cross_ref) {
-            printf("%d:%d\t", $4, $5)
+    if (cross_ref || NO_CHAPTER_HEADINGS || NO_VERSE_NUMBERS) {
+        if (NO_VERSE_NUMBERS && last_chapter_printed != $4) {
+            if (cross_ref) {
+                if(NO_CHAPTER_HEADINGS) {
+                    print("")
+                } else {
+                    print("\n")
+                }
+            } else if (NO_CHAPTER_HEADINGS) {
+                if (last_chapter_printed) {
+                    print("")
+                }
+            } else {
+                if (NO_VERSE_BREAK && !newbook) {
+                    print("")
+                }
+                printf("%d\n", $4)
+            }
+            last_chapter_printed = $4
         }
+    } else {
+        printf("%d:%d\t", $4, $5)
+    }
 	printverse($6)
 	outputted_records++
 }
