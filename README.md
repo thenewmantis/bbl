@@ -14,18 +14,28 @@ usage: bbl [flags] [bible] [reference...]
   Flags:
   -l, --list              list books
   -W, --no-line-wrap      no line wrap
+  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter
+  -C, --no-ch-numbers     no chapter headings either (implies -V)
+  -T, --no-title          book title is not printed
+  -B, --no-verse-break    No linebreaks at the end of each verse--each chapter runs like a continuous paragraph. Currently implies -V (I am working on changing that)
+  -N, --no-format         Equivalent to -WCTB
   -c, --cat               echo text to STDOUT
   -h, --help              show help
   Bibles:
   -d, --douay             Douay-Rheims Bible
   -g, --greek             Greek Bible (Septuagint + SBL NT)
+  -H, --hebrew            The Bible in Hebrew (with cantillation marks and niqqudim)
+  -i, --ivrit             The Bible in Hebrew without cantillation marks and niqqudim
   -j, --jerusalem         New Jerusalem Bible
   -k, --kjv               King James Bible
   -n, --knox              Knox Bible
   -r, --rsv               Revised Standard Version: Catholic Edition
   -v, --vulgate           Clementine Vulgate
 
+ Specify multiple versions to cross-reference (view them in multi-column fashion). This feature is not yet available for languages that are read right-to-left. Specifying -i or -H will currently override all other translations and output only the Hebrew Bible.
+
   Reference types:
+  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else. References for Hebrew must be in Hebrew; for all else, must be in English.
       <Book>
           Individual book
       <Book>:<Chapter>
@@ -51,12 +61,14 @@ usage: bbl [flags] [bible] [reference...]
       Case and accent marks will be disregarded. Note that this will often take
       much longer than an exact search
 
-      @ <Number-of-Verses>?"
-          Random verse or assortment of verses from any book/chapter"
-      <Book> @ <Number-of-Verses>?"
-          Random verse or assortment of verses from any chapter in a given book"
-      <Book>:<Chapter> @ <Number-of-Verses>?"
-          Random verse or assortment of verses from the given book:chapter"
+      @ <Number-of-Verses>?
+          Random verse or assortment of verses from any book/chapter
+      <Book> @ <Number-of-Verses>?
+          Random verse or assortment of verses from any chapter in a given book
+      <Book>:<Chapter> @ <Number-of-Verses>?
+          Random verse or assortment of verses from the given book:chapter
+
+
 ```
 
 ## Note

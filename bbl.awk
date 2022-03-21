@@ -29,7 +29,19 @@ BEGIN {
 	}
 
 	if (cmd == "ref") {
-		mode = parseref(ref, p)
+        switch(lang) {
+            case "he":
+                re["num"] = "[ק-ת]?([יכלמנסעפצ]?[א-ט]?|טו|טז)"
+                re["book"] = "([א-ת]+ )?[א-ת]+"
+                re["chsep"] = ":"
+                break
+            default:
+                re["num"] = "[1-9]+[0-9]*"
+                re["book"] = "^[1-9]?[a-zA-Z ]+"
+                re["chsep"] = ":?"
+                break
+        }
+		mode = parseref(ref, p, re)
 		p["book"] = cleanbook(p["book"])
 	}
 }
@@ -48,8 +60,12 @@ cmd == "list" {
 function envbool(str){
     return ENVIRON[str] != "" && ENVIRON[str] != "0"
 }
+function num(str){
+    return (lang == "he") ? str : int(str)
+}
 
-function parseref(ref, arr) {
+function parseref(ref, arr, re) {
+    # NOTE: For Hebrew, the colon between book and chapter is required
 	# 1. <book>
 	# 2. <book>:?<chapter>
 	# 2a. <book>:?<chapter>[, ?<chapter>]...
@@ -62,11 +78,11 @@ function parseref(ref, arr) {
 	# 7. /~?<search>
 	# 8. <book>/~?search
 	# 9. <book>:?<chapter>/~?search
-        #10. @ <number of verses>?
-        #11. <book> @ <number of verses>?
-        #12. <book>:?<chapter> @ <number of verses>?
+    #10. @ <number of verses>?
+    #11. <book> @ <number of verses>?
+    #12. <book>:?<chapter> @ <number of verses>?
 
-	if (match(ref, "^[1-9]?[a-zA-Z ]+")) {
+	if (match(ref, re["book"])) {
             # 1, 2, 2a, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
             arr["book"] = substr(ref, 1, RLENGTH)
             ref = substr(ref, RLENGTH + 1)
@@ -81,13 +97,13 @@ function parseref(ref, arr) {
             }
 	}
 
-	if (match(ref, "^:?[1-9]+[0-9]*")) {
+	if (match(ref, sprintf("^%s%s", re["chsep"], re["num"]))) {
             # 2, 2a, 3, 3a, 3b, 4, 5, 6, 9, 12
             if (sub("^:", "", ref)) {
-                    arr["chapter"] = int(substr(ref, 1, RLENGTH - 1))
+                    arr["chapter"] = num(substr(ref, 1, RLENGTH - 1))
                     ref = substr(ref, RLENGTH)
             } else {
-                    arr["chapter"] = int(substr(ref, 1, RLENGTH))
+                    arr["chapter"] = num(substr(ref, 1, RLENGTH))
                     ref = substr(ref, RLENGTH + 1)
             }
 	} else if (sub("^ */ *", "", ref)) {
@@ -104,13 +120,13 @@ function parseref(ref, arr) {
             return "exact"
 	}
 
-	if (match(ref, "^:[1-9]+[0-9]*")) {
+	if (match(ref, sprintf("^:%s", re["num"]))) {
             # 3, 3a, 3b, 5, 6
-            arr["verse"] = int(substr(ref, 2, RLENGTH - 1))
+            arr["verse"] = num(substr(ref, 2, RLENGTH - 1))
             ref = substr(ref, RLENGTH + 1)
-	} else if (match(ref, "^-[1-9]+[0-9]*$")) {
+	} else if (match(ref, sprintf("^-%s$", re["num"]))) {
             # 4
-            arr["chapter_end"] = int(substr(ref, 2))
+            arr["chapter_end"] = num(substr(ref, 2))
             return "range"
 	} else if (sub("^ */ *", "", ref)) {
             # 9
@@ -124,11 +140,11 @@ function parseref(ref, arr) {
 	} else if (ref == "") {
             # 2
             return "exact"
-	} else if (match(ref, "^(, ?[1-9]+[0-9]*)+$")) {
+	} else if (match(ref, sprintf("^(, ?%s)+$", re["num"]))) {
             # 2a
             arr["chapter", arr["chapter"]] = 1
             delete arr["chapter"]
-            while (match(ref, "^, ?[1-9]+[0-9]*")) {
+            while (match(ref, sprintf("^, ?%s", re["num"]))) {
                     if(sub("^, ", "", ref)) {
                         arr["chapter", substr(ref, 1, RLENGTH - 2)] = 1
                         ref = substr(ref, RLENGTH - 1)
@@ -146,8 +162,8 @@ function parseref(ref, arr) {
 	} else if (match(ref, "^ *@ *")) {
             # 10, 11, 12
             ref = substr(ref, RLENGTH + 1)
-            if (match(ref, "^[1-9][0-9]*")) {
-                arr["numberOfVerses"] = int(ref)
+            if (match(ref, sprintf("^%s", re["num"]))) {
+                arr["numberOfVerses"] = num(ref)
             } else {
                 arr["numberOfVerses"] = 1
             }
@@ -155,22 +171,22 @@ function parseref(ref, arr) {
             return "random"
 	}
 
-	if (match(ref, "^-[1-9]+[0-9]*$")) {
+	if (match(ref, sprintf("^-%s$", re["num"]))) {
             # 5
-            arr["verse_end"] = int(substr(ref, 2))
+            arr["verse_end"] = num(substr(ref, 2))
             return "range"
-	} else if (match(ref, "-[1-9]+[0-9]*")) {
+	} else if (match(ref, sprintf("-%s", re["num"]))) {
             # 6
-            arr["chapter_end"] = int(substr(ref, 2, RLENGTH - 1))
+            arr["chapter_end"] = num(substr(ref, 2, RLENGTH - 1))
             ref = substr(ref, RLENGTH + 1)
 	} else if (ref == "") {
             # 3
             return "exact"
-	} else if (match(ref, "^(, ?[1-9]+[0-9]*)+$")) {
+	} else if (match(ref, sprintf("^(, ?%s)+$", re["num"]))) {
             # 3a
             arr["verse", arr["verse"]] = 1
             delete arr["verse"]
-            while (match(ref, "^, ?[1-9]+[0-9]*")) {
+            while (match(ref, sprintf("^, ?%s", re["num"]))) {
                     if(sub("^, ", "", ref)) {
                         arr["verse", substr(ref, 1, RLENGTH - 2)] = 1
                         ref = substr(ref, RLENGTH - 1)
@@ -185,7 +201,7 @@ function parseref(ref, arr) {
             }
 
             return "exact_set"
-        } else if (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*")) {
+        } else if (match(ref, sprintf("^, ?%s:%s", re["num"]))) {
             # 3b
             arr["chapter:verse", arr["chapter"] ":" arr["verse"]] = 1
             delete arr["chapter"]
@@ -198,7 +214,7 @@ function parseref(ref, arr) {
                         arr["chapter:verse", substr(ref, 2, RLENGTH - 1)] = 1
                         ref = substr(ref, RLENGTH + 1)
                     }
-            } while (match(ref, "^, ?[1-9]+[0-9]*:[1-9]+[0-9]*"))
+            } while (match(ref, sprintf("^, ?%s:%s", re["num"])))
 
             if (ref != "") {
                     return "unknown"
@@ -209,9 +225,9 @@ function parseref(ref, arr) {
             return "unknown"
 	}
 
-	if (match(ref, "^:[1-9]+[0-9]*$")) {
+	if (match(ref, sprintf("^:%s$", re["num"]))) {
             # 6
-            arr["verse_end"] = int(substr(ref, 2))
+            arr["verse_end"] = num(substr(ref, 2))
             return "range_ext"
 	} else {
             return "unknown"
@@ -328,12 +344,12 @@ function processline() {
                 if (NO_VERSE_BREAK && !newbook) {
                     print("")
                 }
-                printf("%d\n", $4)
+                print($4)
             }
             last_chapter_printed = $4
         }
     } else {
-        printf("%d:%d\t", $4, $5)
+        printf("%s:%s\t", $4, $5)
     }
 	printverse($6)
 	outputted_records++

@@ -34,15 +34,19 @@ show_help() {
 	echo "  -h, --help              show help"
         echo "  Bibles:"
 	echo "  -d, --douay             Douay-Rheims Bible"
-        echo "  -g, --greek             Greek Bible (Septuagint + SBL NT)"
-	echo "  -H, --hebrew            The Bible in Hebrew"
+    echo "  -g, --greek             Greek Bible (Septuagint + SBL NT)"
+    echo "  -H, --hebrew            The Bible in Hebrew (with cantillation marks and niqqudim)"
+	echo "  -i, --ivrit             The Bible in Hebrew without cantillation marks and niqqudim"
 	echo "  -j, --jerusalem         New Jerusalem Bible"
 	echo "  -k, --kjv               King James Bible"
 	echo "  -n, --knox              Knox Bible"
         echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
 	echo "  -v, --vulgate           Clementine Vulgate"
+    echo
+    echo " Specify multiple versions to cross-reference (view them in multi-column fashion). This feature is not yet available for languages that are read right-to-left. Specifying -i or -H will currently override all other translations and output only the Hebrew Bible."
 	echo
 	echo "  Reference types:"
+    echo "  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else. References for Hebrew must be in Hebrew; for all else, must be in English."
 	echo "      <Book>"
 	echo "          Individual book"
 	echo "      <Book>:<Chapter>"
@@ -88,7 +92,7 @@ set_bible() {
 
 lang="en" # Language of text being used--most are English
 list=""
-opts="$(getopt -o lWVCTBNchdgHjknrv -l list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
+opts="$(getopt -o lWVCTBNchdgHijknrv -l list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,ivrit,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
@@ -130,11 +134,16 @@ while [ $# -gt 0 ]; do
                 set_bible grb
                 lang="el"
                 shift ;;
-        -H|--hebrew)
+        -H|--hebrew|-i|--ivrit)
                 set_bible heb
                 lang="he"
-                # Hebrew is read right-to-left and needs to be reversed
-                r2l="y"
+                # If reading in terminal, use `rev` to put it right-to-left
+                case $1 in
+                    -i|--ivrit)
+                        r2l="y";;
+                    *)
+                        [ "$UNICODE_TERM" ] || noTerm='y' ;;
+                esac
                 shift ;;
         -j|--jerusalem)
                 set_bible njb
@@ -186,13 +195,15 @@ if [ $# -eq 0 ]; then
 		if ! read -r ref; then
 			break
 		fi
-		get_data "$b.tsv" | awk -v cmd=ref -v ref="$ref" "$(get_data bbl.awk)" | ${PAGER}
+		get_data "$b.tsv" | awk -v cmd=ref -v ref="$ref" -v lang="$lang" "$(get_data bbl.awk)" | ${PAGER}
 	done
 	exit 0
 fi
 
 i=0
-myTempDir=$(mktemp -d "${TMPDIR:-/tmp/}$(basename "$0").XXXXXXXXXXXX")
+tempDirPattern="${TMPDIR:-/tmp/}$(basename "$0")."
+myTempDir=$(mktemp -d "${tempDirPattern}XXXXXXXXXXXX")
+exitCode=0
 for version in $BIBLE; do
     filename="${myTempDir}/${i}-${version}.txt"
     get_data "${version}".tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "$filename"
@@ -201,7 +212,7 @@ done
 
 if [ ${i} -gt 1 ]; then
     filename="${myTempDir}/crossref.txt"
-    paste "$(ls "$myTempDir")" -d "@" | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' > "$filename"
+    paste -d '@' $(ls -d "${myTempDir}/"*) | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' > "$filename"
     # Remove all files in the tmpdir with a hyphen in the name, i.e. everything except the file we just created
     rm "$myTempDir"/*-*
 else
@@ -214,11 +225,24 @@ else
         sed -n "$sedCmd" "$filename" > "${myTempDir}/randomVerses"
         awk -v cmd=clean "$(get_data bbl.awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${filename}"
     fi
-
-    if [ "$r2l" ]; then
-        rev "${filename}" | $PAGER
-    else
-        $PAGER "$filename"
-    fi
 fi
-rm -rf "${myTempDir}"
+
+if [ "$noTerm" ]; then
+    if command -v "$BROWSER" > /dev/null 2>&1; then
+        "$BROWSER" "$filename"
+        mv "$myTempDir" "${tempDirPattern}K"
+    else
+        echo "$0: Text may not be terminal-compatible and BROWSER environment variable is not set or cannot be invoked."
+        echo "to suppress this error and try to display on the terminal no matter what, set the environment"
+        echo "variable 'UNICODE_TERM' to a non-empty string"
+        exitCode=1
+    fi
+elif [ "$r2l" ]; then
+    rev "${filename}" | $PAGER
+else
+    $PAGER "$filename"
+fi
+
+rm -rf "$tempDirPattern"??*
+mv "${tempDirPattern}K" "$myTempDir" 2>/dev/null # Preserves browser-viewable files for only one invocation
+exit "$exitCode"
