@@ -4,7 +4,6 @@
 
 SELF="$0"
 BIBLE=""
-DEFAULT_BIBLE="knx" # Use Knox Bible if none is specified in command line options
 
 get_data() {
 	sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
@@ -43,10 +42,13 @@ show_help() {
         echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
 	echo "  -v, --vulgate           Clementine Vulgate"
     echo
-    echo " Specify multiple versions to cross-reference (view them in multi-column fashion). This feature is not yet available for languages that are read right-to-left. Specifying -i or -H will currently override all other translations and output only the Hebrew Bible."
+    echo "Specify multiple versions to cross-reference (view them in multi-column fashion)."
+    echo "This feature is not yet available for languages that are read right-to-left."
+    echo "Specifying -i or -H will currently override all other translations and output only the Hebrew Bible."
 	echo
 	echo "  Reference types:"
-    echo "  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else. References for Hebrew must be in Hebrew; for all else, must be in English."
+    echo "  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else."
+    echo " References for Hebrew must be in Hebrew; for all else, must be in English."
 	echo "      <Book>"
 	echo "          Individual book"
 	echo "      <Book>:<Chapter>"
@@ -88,6 +90,9 @@ set_bible() {
         #For cross-referencing
         BIBLE=${BIBLE}" "$1
     fi
+}
+default_bible() {
+    [ "$DEFAULT_BIBLE" ] && BIBLE="$DEFAULT_BIBLE" || BIBLE="knx"
 }
 
 lang="en" # Language of text being used--most are English
@@ -167,7 +172,7 @@ done
 # TODO cross-referencing is not yet available with Hebrew
 echo "$BIBLE" | grep -q 'heb' && BIBLE='heb'
 
-[ -z "$BIBLE" ] && set_bible $DEFAULT_BIBLE
+[ -z "$BIBLE" ] && default_bible
 
 if [ "$list" ]; then
     get_data "$(echo "${BIBLE}" | cut -d " " -f 1).tsv" | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}

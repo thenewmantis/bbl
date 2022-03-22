@@ -74,7 +74,7 @@ usage: bbl [flags] [bible] [reference...]
 ## Note
 
 The default behaviour (without a flag to specify the Bible version) is to print from the Knox Bible.
-This is easy to change by changing the line before the default of the main case statement (close to line 125) of bbl.sh (set_bible knx) to reflect the three-letter abbreviation of your translation of choice.
+To change this, set the environment variable "DEFAULT_BIBLE" to reflect the three-letter abbreviation of your translation of choice.
 One can easily extend this program ad nauseam by simply adding new .tsv files and updating the getopt and the case statement in bbl.sh accordingly.
 
 ## Install
