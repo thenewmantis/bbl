@@ -32,10 +32,13 @@ usage: bbl [flags] [bible] [reference...]
   -r, --rsv               Revised Standard Version: Catholic Edition
   -v, --vulgate           Clementine Vulgate
 
- Specify multiple versions to cross-reference (view them in multi-column fashion). This feature is not yet available for languages that are read right-to-left. Specifying -i or -H will currently override all other translations and output only the Hebrew Bible.
+Specify multiple versions to cross-reference (view them in multi-column fashion).
+This feature is not yet available for languages that are read right-to-left.
+Specifying -i or -H will currently override all other translations and output only the Hebrew Bible.
 
   Reference types:
-  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else. References for Hebrew must be in Hebrew; for all else, must be in English.
+  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else.
+ References for Hebrew must be in Hebrew; for all else, must be in English.
       <Book>
           Individual book
       <Book>:<Chapter>
