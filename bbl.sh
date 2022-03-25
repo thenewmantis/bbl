@@ -238,7 +238,7 @@ if [ "$noTerm" ]; then
         mv "$myTempDir" "${tempDirPattern}K"
     else
         echo "$0: Text may not be terminal-compatible and BROWSER environment variable is not set or cannot be invoked."
-        echo "to suppress this error and try to display on the terminal no matter what, set the environment"
+        echo "To suppress this error and try to display on the terminal no matter what, set the environment"
         echo "variable 'UNICODE_TERM' to a non-empty string"
         exitCode=1
     fi
