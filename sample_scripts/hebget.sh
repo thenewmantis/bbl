@@ -1,12 +1,16 @@
 #!/bin/sh
 # https://github.com/thenewmantis/bbl.git
 # This script is intended to pull all verses of the Hebrew Bible from the web into plain text, with one verse per line, in the following format: (e.g.)
-# TODO
+# בראשית	בר	א	א	א	בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃
+# Which, in the command line application that these verses are used for, would produce the following output:
+# תישארב
+# ׃ץֶרָֽאָה תֵ֥אְו םִיַ֖מָּׁשַה תֵ֥א םיִ֑הֹלֱא אָ֣רָּב תיִׁ֖שאֵרְּב	א:א
+# (Rendered right-to-left, as is proper.)
 # The operation of this script is, of course, dependent on the website that hosts the content keeping its URLS and HTML the same, or at least still compatible with the regex used.
 # Please feel free to modify and reuse this script or another one like it in order to versify any text you find online
 # Every line in the resulting file should match the following regex (typed exactly as it would be in a Vimscript command (but ignore the surrounding whitespace)):
-#                      ^[א-\t\%([1-4]\)\?\a\+\t\d\{1,2}\t\d\{1,3}\t\d\{1,3}\t\D\+$
-# To run this script successfully, open an empty Vim buffer in the directory that this script is placed, give the buffer a filename and run the following ex command (from the empty buffer):
+#                      ^[א-ת]\+\t\%([א-ת]\+ \)\?[א-ת]\+\t[א-ת]\{1,2}\%(\tק\?[א-ת]\{0,2}\&.\+\)\{2}\t\D\+$
+# To run, simply run: `./hebget.sh`. This will silently overwrite any file named "h.tsv" in the current directory.
 
 printf="/usr/bin/env printf"
 b='01'
