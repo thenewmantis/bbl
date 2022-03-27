@@ -13,6 +13,7 @@ usage: bbl [flags] [bible] [reference...]
 
   Flags:
   -l, --list              list books
+  -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)
   -W, --no-line-wrap      no line wrap
   -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter
   -C, --no-ch-numbers     no chapter headings either (implies -V)

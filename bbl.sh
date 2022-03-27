@@ -5,6 +5,9 @@
 SELF="$0"
 BIBLE=""
 
+data_exists() {
+    sed '1,/^#EOF$/d' < "$SELF" | tar tz "$1.tsv" > /dev/null 2>&1
+}
 get_data() {
 	sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
 }
@@ -23,6 +26,7 @@ show_help() {
 	echo
         echo "  Flags:"
 	echo "  -l, --list              list books"
+    echo "  -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)"
 	echo "  -W, --no-line-wrap      no line wrap"
 	echo "  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter"
     echo "  -C, --no-ch-numbers     no chapter headings either (implies -V)"
@@ -84,7 +88,7 @@ show_help() {
 }
 
 set_bible() {
-    if [ -z "${BIBLE}" ]; then
+    if [ -z "${BIBLE}" ] || [ "$nocrossref" ]; then
         BIBLE=$1
     else
         #For cross-referencing
@@ -97,7 +101,8 @@ default_bible() {
 
 lang="en" # Language of text being used--most are English
 list=""
-opts="$(getopt -o lWVCTBNchdgHijknrv -l list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,ivrit,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
+nocrossref=""
+opts="$(getopt -o lo:WVCTBNchdgHijknrv -l list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,ivrit,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
@@ -107,6 +112,13 @@ while [ $# -gt 0 ]; do
         -l|--list)
                 # List all book names with their abbreviations
                 list=1
+                shift ;;
+        -o)
+                shift
+                nocrossref='y'
+                data_exists "$1" && set_bible "$1" ||
+                { echo "Error: $1.tsv not found."; exit 1
+                }
                 shift ;;
         -W|--no-line-wrap)
                 export KJV_NOLINEWRAP=1
@@ -140,6 +152,7 @@ while [ $# -gt 0 ]; do
                 lang="el"
                 shift ;;
         -H|--hebrew|-i|--ivrit)
+                nocrossref='y'
                 set_bible heb
                 lang="he"
                 # If reading in terminal, use `rev` to put it right-to-left
@@ -168,9 +181,6 @@ while [ $# -gt 0 ]; do
                 shift ;;
     esac
 done
-
-# TODO cross-referencing is not yet available with Hebrew
-echo "$BIBLE" | grep -q 'heb' && BIBLE='heb'
 
 [ -z "$BIBLE" ] && default_bible
 
