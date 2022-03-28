@@ -9,10 +9,11 @@ This implementation allows for numerous translations/versions of the Bible to be
 
 ```
 
-usage: bbl [flags] [bible] [reference...]
+usage: bbl [flags] [reference...]
 
   Flags:
-  -l, --list              list books
+  -l, --list-books        list book names (for the reading chosen)
+  -L, --list              list options for readings (Vulgate, KJV, Latin poems, etc.)
   -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)
   -W, --no-line-wrap      no line wrap
   -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter

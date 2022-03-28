@@ -11,6 +11,10 @@ data_exists() {
 get_data() {
 	sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
 }
+list_readings() {
+    sed '1,/^#EOF$/d' < "$SELF" | tar tz --wildcards "*.tsv" | sed 's/\.tsv$//'
+    exit 0
+}
 
 if [ -z "$PAGER" ]; then
 	if command -v less >/dev/null; then
@@ -22,10 +26,11 @@ fi
 
 show_help() {
 	exec >&2
-	echo "usage: $(basename "$0") [flags] [bible] [reference...]"
+	echo "usage: $(basename "$0") [flags] [reference...]"
 	echo
-        echo "  Flags:"
-	echo "  -l, --list              list books"
+    echo "  Flags:"
+    echo "  -l, --list-books        list book names (for the reading chosen)"
+    echo "  -L, --list              list options for readings (Vulgate, KJV, Latin poems, etc.)"
     echo "  -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)"
 	echo "  -W, --no-line-wrap      no line wrap"
 	echo "  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter"
@@ -102,17 +107,19 @@ default_bible() {
 lang="en" # Language of text being used--most are English
 list=""
 nocrossref=""
-opts="$(getopt -o lo:WVCTBNchdgHijknrv -l list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,ivrit,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
+opts="$(getopt -o lLo:WVCTBNchdgHijknrv -l list-books,list,no-line-wrap,no-verse-numbers,no-chapter-headings,no-title,no-verse-break,-no-format,cat,help,douay,greek,hebrew,ivrit,jerusalem,kjv,knox,rsv,vulgate -- "$@")"
 eval set -- "$opts"
 while [ $# -gt 0 ]; do
     case $1 in
         --)
                 shift
                 break;;
-        -l|--list)
-                # List all book names with their abbreviations
+        -l|--list-books)
+                # List all book names of the named reading with their abbreviations
                 list=1
                 shift ;;
+        -L|--list)
+                list_readings ;;
         -o)
                 shift
                 nocrossref='y'
