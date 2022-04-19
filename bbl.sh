@@ -251,7 +251,7 @@ fi
 
 if [ "$noTerm" ]; then
     if command -v "$BROWSER" > /dev/null 2>&1; then
-        "$BROWSER" "$filename"
+        setsid -f "$BROWSER" "$filename" >/dev/null 2>&1
         mv "$myTempDir" "${tempDirPattern}K"
     else
         echo "$0: Text may not be terminal-compatible and BROWSER environment variable is not set or cannot be invoked."
