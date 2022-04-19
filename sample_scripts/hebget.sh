@@ -1,5 +1,14 @@
 #!/bin/sh
 # https://github.com/thenewmantis/bbl.git
+
+# !!!NOTE!!! This file will probably not display as intended if viewed in a web browser.
+# Web browsers use a feature called "bidi" while displaying text. With bidi, characters from scripts that are read right-to-left will be displayed
+# in their proper orientation alongside regular (left-to-right) characters. This file itself was written while coping with the fact that Hebrew
+# must be displayed wrong at times for the purpose of working with text in a sane way. Therefore all strings in this shell script that are written in Hebrew
+# are actually backwards (written left-to-right) in this file. In the lines (5 lines after this one) where I show example output, I have letters written
+# right-to-left, as they should be, but web browsers will automatically reverse the display orientation of all Hebrew letters relative to the way they are encoded in files.
+# The only fully accurate way that I am aware of to view this file is to download and open it in a text editor.
+
 # This script is intended to pull all verses of the Hebrew Bible from the web into plain text, with one verse per line, in the following format: (e.g.)
 # בראשית	בר	א	א	א	בְּרֵאשִׁ֖ית בָּרָ֣א אֱלֹהִ֑ים אֵ֥ת הַשָּׁמַ֖יִם וְאֵ֥ת הָאָֽרֶץ׃
 # Which, in the command line application that these verses are used for, would produce the following output:
@@ -26,8 +35,22 @@ download() {
     curl -L "$url" -o "$myFile"
 }
 nextBook() {
+    # Book 26 is psalms, which has 26, 26a, 26b, 26c, 26d and 26e
+    if echo "$b" | grep -q '^26'; then
+       case "$b" in
+           26a) b='26b' ;;
+           26b) b='26c' ;;
+           26c) b='26d' ;;
+           26d) b='26e' ;;
+           26e)
+               b='27'
+               bAbs=$(( bAbs + 1 )) ;;
+       esac
+       return
+    fi
     bAbs=$(( bAbs + 1 ))
     next="$($printf '%02d' "$(($(echo "$b" | grep -o '[1-9][0-9]\?') + 1))")"
+    # These books all have parts a and b (e.g. there is no 25, only 25a and 25b)
     for n in 08 09 25 35; do
         if [ "$b" = "${n}a" ]; then
             b="${n}b"
