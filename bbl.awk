@@ -201,7 +201,7 @@ function parseref(ref, arr, re) {
             }
 
             return "exact_set"
-        } else if (match(ref, sprintf("^, ?%s:%s", re["num"]))) {
+        } else if (match(ref, sprintf("^, ?%s:%s", re["num"], re["num"]))) {
             # 3b
             arr["chapter:verse", arr["chapter"] ":" arr["verse"]] = 1
             delete arr["chapter"]
