@@ -16,7 +16,10 @@ list_readings() {
     exit 0
 }
 
-if [ -z "$PAGER" ]; then
+if [ ! -t 1 ]; then
+    # If output is not a terminal, prevent the default behavior of opening the data in the pager only to send it down the pipeline
+    PAGER="cat"
+elif [ -z "$PAGER" ]; then
 	if command -v less >/dev/null; then
 		PAGER="less"
 	else
