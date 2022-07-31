@@ -29,19 +29,17 @@ BEGIN {
 	}
 
 	if (cmd == "ref") {
-        switch(lang) {
-            case "he":
+        if (lang == "he") {
                 re["num"] = "[ק-ת]?([יכלמנסעפצ]?[א-ט]?|טו|טז)"
                 re["book"] = "([א-ת]+ )?[א-ת]+"
                 re["chsep"] = ":"
-                break
-            default:
+        }
+        else {
                 re["num"] = "[1-9]+[0-9]*"
                 re["book"] = "^[1-9]?[a-zA-Z ]+"
                 re["chsep"] = ":?"
-                break
         }
-		mode = parseref(ref, p, re)
+		mode = parseref(p)
 		p["book"] = cleanbook(p["book"])
 	}
 }
@@ -64,7 +62,7 @@ function num(str){
     return (lang == "he") ? str : int(str)
 }
 
-function parseref(ref, arr, re) {
+function parseref(arr) {
     # NOTE: For Hebrew, the colon between book and chapter is required
 	# 1. <book>
 	# 2. <book>:?<chapter>
@@ -259,8 +257,7 @@ function bookmatches(book, bookabbr, query) {
 function roughpattern(regex) {
     # TODO Can mess with search pattern if regex is used on command line
     regex = tolower(regex)
-    switch(lang) {
-        case "el":
+    if (lang == "el") {
             polytonic["α"] = "[αάἀ-ἆὰᾀ-ᾆᾳ-ᾷ]"
             polytonic["ε"] = "[εέἐ-ἕὲ]"
             polytonic["η"] = "[ηήἠ-ἧὴᾐ-ᾗῃ-ῇ]"
@@ -271,10 +268,9 @@ function roughpattern(regex) {
             for (letter in polytonic) {
                 gsub(letter, polytonic[letter], regex)
             }
-            break
-        case "la":
+    }
+    else if (lang =="la" ) {
             gsub("e", "[eë]", regex)
-            break
     }
     return regex
 }
@@ -388,6 +384,7 @@ END {
 	if (cmd == "ref") {
         if (outputted_records == 0) {
 		    print "Unknown reference: " ref
+		    exit 1
         } else if (mode == "random") {
             printf("~~~RANDOMS: %d\n", p["numberOfVerses"])
         }

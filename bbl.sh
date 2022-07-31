@@ -6,101 +6,114 @@ SELF="$0"
 BIBLE=""
 
 data_exists() {
-    sed '1,/^#EOF$/d' < "$SELF" | tar tz "$1.tsv" > /dev/null 2>&1
+    sed '1,/^#EOF$/d' < "$SELF" | tar tz "$1.tsv" >/dev/null 2>&1
 }
 get_data() {
-	sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
+    sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
+}
+get_ref() {
+    # Thank you, StackExchange. This will cause $PAGER to give the same exit code
+    # that bbl would have given, so that a nonzero exit code can be used in scripts
+    # to know that the reference returned no results.
+    { { { { get_data "$1" | awk -v cmd=ref -v ref="$2" -v cross_ref="$3" -v lang="$lang" "$(get_data bbl.awk)"; echo $? >&3; } | ${PAGER} >&4; } 3>&1; } | { read xs; exit $xs; } } 4>&1
+}
+list_books() {
+    reading="$(echo "${BIBLE}" | cut -d " " -f 1)"
+    get_data "$reading" 2>/dev/null | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
+    exit
 }
 list_readings() {
     sed '1,/^#EOF$/d' < "$SELF" | tar tz --wildcards "*.tsv" | sed 's/\.tsv$//'
-    exit 0
+    exit
 }
 
 if [ ! -t 1 ]; then
     # If output is not a terminal, prevent the default behavior of opening the data in the pager only to send it down the pipeline
     PAGER="cat"
 elif [ -z "$PAGER" ]; then
-	if command -v less >/dev/null; then
-		PAGER="less"
-	else
-		PAGER="cat"
-	fi
+    if command -v less >/dev/null; then
+        PAGER="less"
+    else
+        PAGER="cat"
+    fi
 fi
 
 show_help() {
-	exec >&2
-	echo "usage: $(basename "$0") [flags] [reference...]"
-	echo
+    exec >&2
+    echo "usage: $(basename "$0") [flags] [reference...]"
+    echo
     echo "  Flags:"
     echo "  -l, --list-books        list book names (for the reading chosen)"
     echo "  -L, --list              list options for readings (Vulgate, KJV, Latin poems, etc.)"
     echo "  -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)"
-	echo "  -W, --no-line-wrap      no line wrap"
-	echo "  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter"
+    echo "  -W, --no-line-wrap      no line wrap"
+    echo "  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter"
     echo "  -C, --no-ch-numbers     no chapter headings either (implies -V)"
     echo "  -T, --no-title          book title is not printed"
     echo "  -B, --no-verse-break    No linebreaks at the end of each verse--each chapter runs like a continuous paragraph. Currently implies -V (I am working on changing that)"
-	echo "  -N, --no-format         Equivalent to -WCTB"
+    echo "  -N, --no-format         Equivalent to -WCTB"
         echo "  -c, --cat               echo text to STDOUT"
-	echo "  -h, --help              show help"
+    echo "  -h, --help              show help"
         echo "  Bibles:"
-	echo "  -d, --douay             Douay-Rheims Bible"
+    echo "  -d, --douay             Douay-Rheims Bible"
     echo "  -g, --greek             Greek Bible (Septuagint + SBL NT)"
     echo "  -H, --hebrew            The Bible in Hebrew (with cantillation marks and niqqudim)"
-	echo "  -i, --ivrit             The Bible in Hebrew without cantillation marks and niqqudim"
-	echo "  -j, --jerusalem         New Jerusalem Bible"
-	echo "  -k, --kjv               King James Bible"
-	echo "  -n, --knox              Knox Bible"
+    echo "  -i, --ivrit             The Bible in Hebrew without cantillation marks and niqqudim"
+    echo "  -j, --jerusalem         New Jerusalem Bible"
+    echo "  -k, --kjv               King James Bible"
+    echo "  -n, --knox              Knox Bible"
         echo "  -r, --rsv               Revised Standard Version: Catholic Edition"
-	echo "  -v, --vulgate           Clementine Vulgate"
+    echo "  -v, --vulgate           Clementine Vulgate"
     echo
     echo "Specify multiple versions to cross-reference (view them in multi-column fashion)."
     echo "This feature is not yet available for languages that are read right-to-left."
     echo "Specifying -i or -H will currently override all other translations and output only the Hebrew Bible."
-	echo
-	echo "  Reference types:"
+    echo
+    echo "  Reference types:"
     echo "  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else."
     echo " References for Hebrew must be in Hebrew; for all else, must be in English."
-	echo "      <Book>"
-	echo "          Individual book"
-	echo "      <Book>:<Chapter>"
-	echo "          Individual chapter of a book"
-	echo "      <Book>:<Chapter>:<Verse>[,<Verse>]..."
-	echo "          Individual verse(s) of a specific chapter of a book"
-	echo "      <Book>:<Chapter>:<Verse>[,<Chapter>:<Verse>]..."
-	echo "          Individual verses of different chapters of a book"
-	echo "      <Book>:<Chapter>-<Chapter>"
-	echo "          Range of chapters in a book"
-	echo "      <Book>:<Chapter>:<Verse>-<Verse>"
-	echo "          Range of verses in a book chapter"
-	echo "      <Book>:<Chapter>:<Verse>-<Chapter>:<Verse>"
-	echo "          Range of chapters and verses in a book"
-	echo
-	echo "      /~?<Search>"
-	echo "          All verses that match a pattern"
-	echo "      <Book>/~?<Search>"
-	echo "          All verses in a book that match a pattern"
-	echo "      <Book>:<Chapter>/~?<Search>"
-	echo "          All verses in a chapter of a book that match a pattern"
-	echo "      In searches, the optional ~ indicates that the search should be approximate:"
-	echo "      Case and accent marks will be disregarded. Note that this will often take"
-	echo "      much longer than an exact search"
+    echo "      <Book>"
+    echo "          Individual book"
+    echo "      <Book>:<Chapter>"
+    echo "          Individual chapter of a book"
+    echo "      <Book>:<Chapter>:<Verse>[,<Verse>]..."
+    echo "          Individual verse(s) of a specific chapter of a book"
+    echo "      <Book>:<Chapter>:<Verse>[,<Chapter>:<Verse>]..."
+    echo "          Individual verses of different chapters of a book"
+    echo "      <Book>:<Chapter>-<Chapter>"
+    echo "          Range of chapters in a book"
+    echo "      <Book>:<Chapter>:<Verse>-<Verse>"
+    echo "          Range of verses in a book chapter"
+    echo "      <Book>:<Chapter>:<Verse>-<Chapter>:<Verse>"
+    echo "          Range of chapters and verses in a book"
     echo
-	echo "      @ <Number-of-Verses>?"
-	echo "          Random verse or assortment of verses from any book/chapter"
-	echo "      <Book> @ <Number-of-Verses>?"
-	echo "          Random verse or assortment of verses from any chapter in a given book"
-	echo "      <Book>:<Chapter> @ <Number-of-Verses>?"
-	echo "          Random verse or assortment of verses from the given book:chapter"
-	exit 2
+    echo "      /~?<Search>"
+    echo "          All verses that match a pattern"
+    echo "      <Book>/~?<Search>"
+    echo "          All verses in a book that match a pattern"
+    echo "      <Book>:<Chapter>/~?<Search>"
+    echo "          All verses in a chapter of a book that match a pattern"
+    echo "      In searches, the optional ~ indicates that the search should be approximate:"
+    echo "      Case and accent marks will be disregarded. Note that this will often take"
+    echo "      much longer than an exact search"
+    echo
+    echo "      @ <Number-of-Verses>?"
+    echo "          Random verse or assortment of verses from any book/chapter"
+    echo "      <Book> @ <Number-of-Verses>?"
+    echo "          Random verse or assortment of verses from any chapter in a given book"
+    echo "      <Book>:<Chapter> @ <Number-of-Verses>?"
+    echo "          Random verse or assortment of verses from the given book:chapter"
+    echo
+    echo " Exit code is 0 if no problems; 1 if cross-referencing and one or more references"
+    echo " returned nothing; 2 if no references returned anything."
 }
 
 set_bible() {
-    if [ -z "${BIBLE}" ] || [ "$nocrossref" ]; then
+    if [ -z "$BIBLE" ] || [ "$nocrossref" ]; then
         BIBLE=$1
     else
         #For cross-referencing
-        BIBLE=${BIBLE}" "$1
+        BIBLE="$BIBLE $1"
     fi
 }
 default_bible() {
@@ -153,7 +166,8 @@ while [ $# -gt 0 ]; do
                 PAGER="cat"
                 shift ;;
         -h|--help)
-                show_help ;;
+                show_help
+                exit 0 ;;
         -d|--douay)
                 set_bible drb
                 shift ;;
@@ -194,10 +208,8 @@ done
 
 [ -z "$BIBLE" ] && default_bible
 
-if [ "$list" ]; then
-    get_data "$(echo "${BIBLE}" | cut -d " " -f 1).tsv" | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
-    exit
-fi
+[ "$list" ] && list_books
+
 
 if cols=$(tput cols 2>/dev/null); then
         versions=0
@@ -209,35 +221,39 @@ if cols=$(tput cols 2>/dev/null); then
 fi
 
 if [ $# -eq 0 ]; then
-	if [ ! -t 0 ]; then
-		show_help
-	fi
+    if [ ! -t 0 ]; then
+        echo "Interactive mode cannot be used unless in a terminal"
+        exit 2
+    fi
 
-	# Interactive mode
+    # Interactive mode
     b="$(echo "$BIBLE" | cut -d ' ' -f 1)"
-	while true; do
-		printf '%s> ' "$b"
-		if ! read -r ref; then
-			break
-		fi
-		get_data "$b.tsv" | awk -v cmd=ref -v ref="$ref" -v lang="$lang" "$(get_data bbl.awk)" | ${PAGER}
-	done
-	exit 0
+    while true; do
+        printf '%s> ' "$b"
+        if ! read -r ref; then
+            break
+        fi
+        get_ref "$b" "$ref"
+    done
+    exit 0
 fi
 
 i=0
 tempDirPattern="${TMPDIR:-/tmp/}$(basename "$0")."
 myTempDir=$(mktemp -d "${tempDirPattern}XXXXXXXXXXXX")
 exitCode=0
+atLeastOneSuccess=''
 for version in $BIBLE; do
     filename="${myTempDir}/${i}-${version}.txt"
-    get_data "${version}".tsv 2>/dev/null | awk -v cmd=ref -v ref="$*" -v cross_ref="${i}" -v lang="$lang" "$(get_data bbl.awk)" 2>/dev/null > "$filename"
+    get_ref "$version.tsv" "$*" "$i" > "$filename"
+    [ $? -ne 0 ] && exitCode=1 || atLeastOneSuccess='y'
     i=$((i + 1))
 done
+[ -z "$atLeastOneSuccess" ] && exitCode=2
 
 if [ ${i} -gt 1 ]; then
     filename="${myTempDir}/crossref.txt"
-    paste -d '@' $(ls -d "${myTempDir}/"*) | column -t -s "@" -o "	" | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' > "$filename"
+    paste -d '@' $(ls -d "${myTempDir}/"*) | column -t -s "@" -o "    " | sed '/^[a-zA-Z]/s/^/\t/;1s/^ *//;' > "$filename"
     # Remove all files in the tmpdir with a hyphen in the name, i.e. everything except the file we just created
     rm "$myTempDir"/*-*
 else
@@ -260,7 +276,7 @@ if [ "$noTerm" ]; then
         echo "$0: Text may not be terminal-compatible and BROWSER environment variable is not set or cannot be invoked."
         echo "To suppress this error and try to display on the terminal no matter what, set the environment"
         echo "variable 'UNICODE_TERM' to a non-empty string"
-        exitCode=1
+        exitCode=2
     fi
 elif [ "$r2l" ]; then
     rev "${filename}" | $PAGER
@@ -268,6 +284,6 @@ else
     $PAGER "$filename"
 fi
 
-rm -rf "$tempDirPattern"??*
+rm -r "$tempDirPattern"??*
 mv "${tempDirPattern}K" "$myTempDir" 2>/dev/null # Preserves browser-viewable files for only one invocation
 exit "$exitCode"

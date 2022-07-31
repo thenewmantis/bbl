@@ -8,8 +8,9 @@ bbl: bbl.sh bbl.awk *.tsv
 	tar cz bbl.awk *.tsv >> $@
 	chmod +x $@
 
-test: bbl.sh
-	shellcheck -s sh bbl.sh
+test: bbl.sh bbl.awk
+	shellcheck -s sh -S error bbl.sh
+	echo -n | gawk --lint=invalid -f bbl.awk
 
 clean:
 	rm -f bbl
