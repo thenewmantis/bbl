@@ -6,20 +6,45 @@ SELF="$0"
 BIBLE=""
 
 data_exists() {
-    sed '1,/^#EOF$/d' < "$SELF" | tar tz "$1.tsv" >/dev/null 2>&1
+    sed '1,/^#EOF$/d' < "$SELF" | tar tz "$@"
+}
+ls_archive() {
+    # tar tz with no arguments just lists everything
+    data_exists
+}
+reading_exists() {
+    data_exists "$1.tsv" >/dev/null 2>&1
 }
 get_data() {
-    sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$1"
+    sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$@"
+}
+get_data_if_exists() {
+    list=$(ls_archive)
+    get_data $(for arg in "$@"; do
+        echo "$list" | grep -x "$arg"
+    done)
+}
+get_aliases() {
+    aliases="$1.aliases"
+    case "$1" in drb|grb|heb|kjv|knx|njb|rsv|vul) aliases="bibles.aliases $aliases";; esac
+    echo "$aliases"
+}
+get_reading() {
+    get_data_if_exists $(get_aliases "$1") $1.tsv
 }
 get_ref() {
     # Thank you, StackExchange. This will cause $PAGER to give the same exit code
     # that bbl would have given, so that a nonzero exit code can be used in scripts
     # to know that the reference returned no results.
-    { { { { get_data "$1" | awk -v cmd=ref -v ref="$2" -v cross_ref="$3" -v lang="$lang" "$(get_data bbl.awk)"; echo $? >&3; } | ${PAGER} >&4; } 3>&1; } | { read xs; exit $xs; } } 4>&1
+    r="$1" shift
+    cr="$1" shift
+    { { { { get_reading "$r" | awk -v cmd=ref -v ref="$*" -v cross_ref="$cr" -v lang="$lang" "$(get_data bbl.awk)"; echo $? >&3; } | ${PAGER} >&4; } 3>&1; } | { read xs; exit $xs; } } 4>&1
 }
 list_books() {
     reading="$(echo "${BIBLE}" | cut -d " " -f 1)"
-    get_data "$reading" 2>/dev/null | awk -v cmd=list "$(get_data bbl.awk)" | ${PAGER}
+    for f in $reading.tsv $(get_aliases "$reading"); do
+        get_data_if_exists "$f" 2>/dev/null | awk -v cmd=list "$(get_data bbl.awk)"
+    done | ${PAGER}
     exit
 }
 list_readings() {
@@ -71,6 +96,8 @@ show_help() {
     echo
     echo "  Reference types:"
     echo "  NOTE: The colon between book and chapter is required for Hebrew, optional for everything else."
+    echo " <Book> can refer either to the name of a book, or an alias referring to a list of books."
+    echo " Specify the -l flag to get list of both books and aliases"
     echo " References for Hebrew must be in Hebrew; for all else, must be in English."
     echo "      <Book>"
     echo "          Individual book"
@@ -139,7 +166,7 @@ while [ $# -gt 0 ]; do
         -o)
                 shift
                 nocrossref='y'
-                data_exists "$1" && set_bible "$1" ||
+                reading_exists "$1" && set_bible "$1" ||
                 { echo "Error: $1.tsv not found."; exit 1
                 }
                 shift ;;
@@ -233,7 +260,7 @@ if [ $# -eq 0 ]; then
         if ! read -r ref; then
             break
         fi
-        get_ref "$b" "$ref"
+        get_ref "$b" "" "$ref"
     done
     exit 0
 fi
@@ -245,7 +272,7 @@ exitCode=0
 atLeastOneSuccess=''
 for version in $BIBLE; do
     filename="${myTempDir}/${i}-${version}.txt"
-    get_ref "$version.tsv" "$*" "$i" > "$filename"
+    get_ref "$version" "$i" "$@" > "$filename"
     [ $? -ne 0 ] && exitCode=1 || atLeastOneSuccess='y'
     i=$((i + 1))
 done

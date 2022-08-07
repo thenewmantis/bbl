@@ -1,11 +1,24 @@
 
 PREFIX = /usr/local
 
-bbl: bbl.sh bbl.awk *.tsv
+bbl: bbl.sh bbl.awk readings/*/*.tsv readings/*/*.aliases
 	cat bbl.sh > $@
 	echo 'exit 0' >> $@
 	echo "#EOF" >> $@
-	tar cz bbl.awk *.tsv >> $@
+	tar cf bbl.tar bbl.awk
+	(cd readings && \
+	for d in $$(find . -mindepth 1 -maxdepth 1 -type d -printf '%f\n'); do \
+		(cd "$$d" && \
+		common_aliases="$$d.aliases" ; \
+		[ -f "$$common_aliases" ] && tar rf ../../bbl.tar "$$common_aliases" ; \
+		for f in *.tsv; do \
+			aliases_file="$${f%%.tsv}.aliases" ; \
+			[ -f "$$aliases_file" ] && tar rf ../../bbl.tar "$$aliases_file" ; \
+			tar rf ../../bbl.tar "$$f" ; \
+		done; )\
+	done)
+	gzip -c bbl.tar >> $@
+	rm -f bbl.tar
 	chmod +x $@
 
 test: bbl.sh bbl.awk

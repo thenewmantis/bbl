@@ -39,8 +39,7 @@ BEGIN {
                 re["book"] = "^[1-9]?[a-zA-Z ]+"
                 re["chsep"] = ":?"
         }
-		mode = parseref(p)
-		p["book"] = cleanbook(p["book"])
+		mode = parseref(p, ref)
 	}
 }
 
@@ -62,9 +61,10 @@ function num(str){
     return (lang == "he") ? str : int(str)
 }
 
-function parseref(arr) {
+function parseref(arr, q) {
     # NOTE: For Hebrew, the colon between book and chapter is required
 	# 1. <book>
+	# 1a. <book>[, ?<book>]...
 	# 2. <book>:?<chapter>
 	# 2a. <book>:?<chapter>[, ?<chapter>]...
 	# 3. <book>:?<chapter>:<verse>
@@ -75,93 +75,102 @@ function parseref(arr) {
 	# 6. <book>:?<chapter>[:<verse>]-<chapter>:<verse>
 	# 7. /~?<search>
 	# 8. <book>/~?search
+	# 8a. <book>[, ?<book>].../~?search
 	# 9. <book>:?<chapter>/~?search
     #10. @ <number of verses>?
     #11. <book> @ <number of verses>?
     #12. <book>:?<chapter> @ <number of verses>?
 
-	if (match(ref, re["book"])) {
-            # 1, 2, 2a, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
-            arr["book"] = substr(ref, 1, RLENGTH)
-            ref = substr(ref, RLENGTH + 1)
-	} else if (sub("^ */ *", "", ref)) {
+	if (match(q, re["book"])) {
+            # 1, 1a, 2, 2a, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
+            arr["book", cleanbook(substr(q, 1, RLENGTH))] = 1
+            q = substr(q, RLENGTH + 1)
+	} else if (sub("^ */ *", "", q)) {
             # 7
-            if (sub("^~ *", "", ref)) {
-                arr["search"] = roughpattern(ref)
+            if (sub("^~ *", "", q)) {
+                arr["search"] = roughpattern(q)
                 return "rough_search"
             } else {
-                arr["search"] = ref
+                arr["search"] = q
                 return "search"
             }
 	}
 
-	if (match(ref, sprintf("^%s%s", re["chsep"], re["num"]))) {
+	if (match(q, sprintf("^%s%s", re["chsep"], re["num"]))) {
             # 2, 2a, 3, 3a, 3b, 4, 5, 6, 9, 12
-            if (sub("^:", "", ref)) {
-                    arr["chapter"] = num(substr(ref, 1, RLENGTH - 1))
-                    ref = substr(ref, RLENGTH)
+            if (sub("^:", "", q)) {
+                    arr["chapter"] = num(substr(q, 1, RLENGTH - 1))
+                    q = substr(q, RLENGTH)
             } else {
-                    arr["chapter"] = num(substr(ref, 1, RLENGTH))
-                    ref = substr(ref, RLENGTH + 1)
+                    arr["chapter"] = num(substr(q, 1, RLENGTH))
+                    q = substr(q, RLENGTH + 1)
             }
-	} else if (sub("^ */ *", "", ref)) {
+	} else if (sub("^ */ *", "", q)) {
             # 8
-            if (sub("^~ *", "", ref)) {
-                arr["search"] = roughpattern(ref)
+            if (sub("^~ *", "", q)) {
+                arr["search"] = roughpattern(q)
                 return "rough_search"
             } else {
-                arr["search"] = ref
+                arr["search"] = q
                 return "search"
             }
-	} else if (ref == "") {
+	} else if (match(q, sprintf("(,%s)+", re["book"]))) {
+            # 1a
+            # TODO make compatible with chapter/verse/searches etc.
+            split(q, temp_arr, ",")
+            for (i in temp_arr) {
+                arr["book", temp_arr[i]] = 1
+            }
+            return "exact"
+	} else if (q == "") {
             # 1
             return "exact"
 	}
 
-	if (match(ref, sprintf("^:%s", re["num"]))) {
+	if (match(q, sprintf("^:%s", re["num"]))) {
             # 3, 3a, 3b, 5, 6
-            arr["verse"] = num(substr(ref, 2, RLENGTH - 1))
-            ref = substr(ref, RLENGTH + 1)
-	} else if (match(ref, sprintf("^-%s$", re["num"]))) {
+            arr["verse"] = num(substr(q, 2, RLENGTH - 1))
+            q = substr(q, RLENGTH + 1)
+	} else if (match(q, sprintf("^-%s$", re["num"]))) {
             # 4
-            arr["chapter_end"] = num(substr(ref, 2))
+            arr["chapter_end"] = num(substr(q, 2))
             return "range"
-	} else if (sub("^ */ *", "", ref)) {
+	} else if (sub("^ */ *", "", q)) {
             # 9
-            if (sub("^~ *", "", ref)) {
-                arr["search"] = roughpattern(ref)
+            if (sub("^~ *", "", q)) {
+                arr["search"] = roughpattern(q)
                 return "rough_search"
             } else {
-                arr["search"] = ref
+                arr["search"] = q
                 return "search"
             }
-	} else if (ref == "") {
+	} else if (q == "") {
             # 2
             return "exact"
-	} else if (match(ref, sprintf("^(, ?%s)+$", re["num"]))) {
+	} else if (match(q, sprintf("^(, ?%s)+$", re["num"]))) {
             # 2a
             arr["chapter", arr["chapter"]] = 1
             delete arr["chapter"]
-            while (match(ref, sprintf("^, ?%s", re["num"]))) {
-                    if(sub("^, ", "", ref)) {
-                        arr["chapter", substr(ref, 1, RLENGTH - 2)] = 1
-                        ref = substr(ref, RLENGTH - 1)
+            while (match(q, sprintf("^, ?%s", re["num"]))) {
+                    if(sub("^, ", "", q)) {
+                        arr["chapter", substr(q, 1, RLENGTH - 2)] = 1
+                        q = substr(q, RLENGTH - 1)
                     } else {
-                        arr["chapter", substr(ref, 2, RLENGTH - 1)] = 1
-                        ref = substr(ref, RLENGTH + 1)
+                        arr["chapter", substr(q, 2, RLENGTH - 1)] = 1
+                        q = substr(q, RLENGTH + 1)
                     }
             }
 
-            if (ref != "") {
+            if (q != "") {
                     return "unknown"
             }
 
             return "exact_ch_set"
-	} else if (match(ref, "^ *@ *")) {
+	} else if (match(q, "^ *@ *")) {
             # 10, 11, 12
-            ref = substr(ref, RLENGTH + 1)
-            if (match(ref, sprintf("^%s", re["num"]))) {
-                arr["numberOfVerses"] = num(ref)
+            q = substr(q, RLENGTH + 1)
+            if (match(q, sprintf("^%s", re["num"]))) {
+                arr["numberOfVerses"] = num(q)
             } else {
                 arr["numberOfVerses"] = 1
             }
@@ -169,52 +178,52 @@ function parseref(arr) {
             return "random"
 	}
 
-	if (match(ref, sprintf("^-%s$", re["num"]))) {
+	if (match(q, sprintf("^-%s$", re["num"]))) {
             # 5
-            arr["verse_end"] = num(substr(ref, 2))
+            arr["verse_end"] = num(substr(q, 2))
             return "range"
-	} else if (match(ref, sprintf("-%s", re["num"]))) {
+	} else if (match(q, sprintf("-%s", re["num"]))) {
             # 6
-            arr["chapter_end"] = num(substr(ref, 2, RLENGTH - 1))
-            ref = substr(ref, RLENGTH + 1)
-	} else if (ref == "") {
+            arr["chapter_end"] = num(substr(q, 2, RLENGTH - 1))
+            q = substr(q, RLENGTH + 1)
+	} else if (q == "") {
             # 3
             return "exact"
-	} else if (match(ref, sprintf("^(, ?%s)+$", re["num"]))) {
+	} else if (match(q, sprintf("^(, ?%s)+$", re["num"]))) {
             # 3a
             arr["verse", arr["verse"]] = 1
             delete arr["verse"]
-            while (match(ref, sprintf("^, ?%s", re["num"]))) {
-                    if(sub("^, ", "", ref)) {
-                        arr["verse", substr(ref, 1, RLENGTH - 2)] = 1
-                        ref = substr(ref, RLENGTH - 1)
+            while (match(q, sprintf("^, ?%s", re["num"]))) {
+                    if(sub("^, ", "", q)) {
+                        arr["verse", substr(q, 1, RLENGTH - 2)] = 1
+                        q = substr(q, RLENGTH - 1)
                     } else {
-                        arr["verse", substr(ref, 2, RLENGTH - 1)] = 1
-                        ref = substr(ref, RLENGTH + 1)
+                        arr["verse", substr(q, 2, RLENGTH - 1)] = 1
+                        q = substr(q, RLENGTH + 1)
                     }
             }
 
-            if (ref != "") {
+            if (q != "") {
                     return "unknown"
             }
 
             return "exact_set"
-        } else if (match(ref, sprintf("^, ?%s:%s", re["num"], re["num"]))) {
+        } else if (match(q, sprintf("^, ?%s:%s", re["num"], re["num"]))) {
             # 3b
             arr["chapter:verse", arr["chapter"] ":" arr["verse"]] = 1
             delete arr["chapter"]
             delete arr["verse"]
             do {
-                    if(sub("^, ", "", ref)) {
-                        arr["chapter:verse", substr(ref, 1, RLENGTH - 2)] = 1
-                        ref = substr(ref, RLENGTH - 1)
+                    if(sub("^, ", "", q)) {
+                        arr["chapter:verse", substr(q, 1, RLENGTH - 2)] = 1
+                        q = substr(q, RLENGTH - 1)
                     } else {
-                        arr["chapter:verse", substr(ref, 2, RLENGTH - 1)] = 1
-                        ref = substr(ref, RLENGTH + 1)
+                        arr["chapter:verse", substr(q, 2, RLENGTH - 1)] = 1
+                        q = substr(q, RLENGTH + 1)
                     }
-            } while (match(ref, sprintf("^, ?%s:%s", re["num"])))
+            } while (match(q, sprintf("^, ?%s:%s", re["num"])))
 
-            if (ref != "") {
+            if (q != "") {
                     return "unknown"
             }
 
@@ -223,9 +232,9 @@ function parseref(arr) {
             return "unknown"
 	}
 
-	if (match(ref, sprintf("^:%s$", re["num"]))) {
+	if (match(q, sprintf("^:%s$", re["num"]))) {
             # 6
-            arr["verse_end"] = num(substr(ref, 2))
+            arr["verse_end"] = num(substr(q, 2))
             return "range_ext"
 	} else {
             return "unknown"
@@ -238,20 +247,28 @@ function cleanbook(book) {
 	return book
 }
 
+#TODO !!! Fix or use only internally
 function bookmatches(book, bookabbr, query) {
 	book = cleanbook(book)
 	if (book == query) {
 		return book
 	}
-
 	bookabbr = cleanbook(bookabbr)
 	if (bookabbr == query) {
 		return book
 	}
-
+    #TODO !!! length(query) == 0?
 	if (substr(book, 1, length(query)) == query) {
 		return book
 	}
+}
+
+function hasbook(book, bookabbr,    query) {
+    for(query in p){
+        if (sub("^book" SUBSEP, "", query) && bookmatches(book, bookabbr, query)) {
+            return book
+        }
+    }
 }
 
 function roughpattern(regex) {
@@ -309,6 +326,17 @@ function printverse(verse, word_count, characters_printed) {
     }
 }
 
+function process_alias(alias, aliasabbr, book_names,      arr) {
+    if (hasbook(alias, aliasabbr)) {
+        delete p["book", alias]
+        delete p["book", aliasabbr]
+        split(book_names, arr, ",")
+        for(i in arr) {
+            p["book", arr[i]] = 1
+        }
+    }
+}
+
 function processline() {
     newbook = (last_book_printed != $2)
 	if (newbook) {
@@ -351,7 +379,17 @@ function processline() {
 	outputted_records++
 }
 
-cmd == "ref" && mode == "exact" && bookmatches($1, $2, p["book"]) && (p["chapter"] == "" || $4 == p["chapter"]) && (p["verse"] == "" || $5 == p["verse"]) {
+
+cmd == "ref" && !header_ended {
+    if (/^#/) {
+        header_ended = 1
+    } else {
+        process_alias($1, $2, $3)
+        next
+    }
+}
+
+cmd == "ref" && mode == "exact" && hasbook($1, $2) && (p["chapter"] == "" || $4 == p["chapter"]) && (p["verse"] == "" || $5 == p["verse"]) {
 	processline()
 }
 
@@ -360,7 +398,7 @@ cmd == "ref" && mode == "random" && (p["book"] == "" || bookmatches($1, $2, p["b
     outputted_records++
 }
 
-cmd == "ref" && mode == "exact_ch_set" && bookmatches($1, $2, p["book"]) && p["chapter", $4] {
+cmd == "ref" && mode == "exact_ch_set" && hasbook($1, $2) && p["chapter", $4] {
 	processline()
 }
 
