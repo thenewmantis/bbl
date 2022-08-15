@@ -36,7 +36,7 @@ BEGIN {
         }
         else {
                 re["num"] = "[1-9]+[0-9]*"
-                re["book"] = "^[1-9]?[a-zA-Z ]+"
+                re["book"] = "[1-9]?[a-zA-Z ]+"
                 re["chsep"] = ":?"
         }
 		mode = parseref(p, ref)
@@ -81,7 +81,7 @@ function parseref(arr, q) {
     #11. <book> @ <number of verses>?
     #12. <book>:?<chapter> @ <number of verses>?
 
-	if (match(q, re["book"])) {
+	if (match(q, re["book"]) == 1) {
             # 1, 1a, 2, 2a, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
             arr["book", cleanbook(substr(q, 1, RLENGTH))] = 1
             q = substr(q, RLENGTH + 1)
@@ -114,12 +114,14 @@ function parseref(arr, q) {
                 arr["search"] = q
                 return "search"
             }
-	} else if (match(q, sprintf("(,%s)+", re["book"]))) {
+	} else if (match(q, sprintf("^(,%s)+", re["book"]))) {
             # 1a
             # TODO make compatible with chapter/verse/searches etc.
             split(q, temp_arr, ",")
             for (i in temp_arr) {
-                arr["book", temp_arr[i]] = 1
+                if (temp_arr[i] != "") {
+                    arr["book", cleanbook(temp_arr[i])] = 1
+                }
             }
             return "exact"
 	} else if (q == "") {
@@ -328,11 +330,11 @@ function printverse(verse, word_count, characters_printed) {
 
 function process_alias(alias, aliasabbr, book_names,      arr) {
     if (hasbook(alias, aliasabbr)) {
-        delete p["book", alias]
-        delete p["book", aliasabbr]
+        delete p["book", cleanbook(alias)]
+        delete p["book", cleanbook(aliasabbr)]
         split(book_names, arr, ",")
         for(i in arr) {
-            p["book", arr[i]] = 1
+            p["book", cleanbook(arr[i])] = 1
         }
     }
 }
