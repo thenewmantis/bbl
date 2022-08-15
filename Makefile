@@ -9,12 +9,12 @@ bbl: bbl.sh bbl.awk readings/*/*.tsv readings/*/*.aliases
 	(cd readings && \
 	for d in $$(find . -mindepth 1 -maxdepth 1 -type d -printf '%f\n'); do \
 		(cd "$$d" && \
-		common_aliases="$$d.aliases" ; \
-		[ -f "$$common_aliases" ] && tar rf ../../bbl.tar "$$common_aliases" ; \
+		common_aliases="$$d.aliases"; \
+		[ -f "$$common_aliases" ] && tar rf ../../bbl.tar "$$common_aliases"; \
 		for f in *.tsv; do \
-			aliases_file="$${f%%.tsv}.aliases" ; \
-			[ -f "$$aliases_file" ] && tar rf ../../bbl.tar "$$aliases_file" ; \
-			tar rf ../../bbl.tar "$$f" ; \
+			aliases_file="$${f%%.tsv}.aliases"; \
+			[ -f "$$aliases_file" ] && tar rf ../../bbl.tar "$$aliases_file"; \
+			tar rf ../../bbl.tar "$$f"; \
 		done; )\
 	done)
 	gzip -c bbl.tar >> $@
