@@ -217,7 +217,7 @@ function parseref(arr, q,       i) {
                         arr["chapter:verse", substr(q, 2, RLENGTH - 1)] = 1
                         q = substr(q, RLENGTH + 1)
                     }
-            } while (match(q, sprintf("^, ?%s:%s", re["num"])))
+            } while (match(q, sprintf("^, ?%s:%s", re["num"], re["num"])))
 
             if (q != "") {
                     return "unknown"
