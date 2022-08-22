@@ -5,6 +5,9 @@
 SELF="$0"
 BIBLE=""
 
+pr() {
+    printf '%s' "$@"
+}
 data_exists() {
     sed '1,/^#EOF$/d' < "$SELF" | tar tz "$@"
 }
@@ -23,9 +26,10 @@ get_awk() {
 }
 get_data_if_exists() {
     list=$(ls_archive)
-    get_data $(for arg in "$@"; do
+    existing_items=$(for arg in "$@"; do
         echo "$list" | grep -x "$arg"
     done)
+    [ -n "$existing_items" ] && get_data $existing_items
 }
 get_aliases() {
     aliases="$1.aliases"
@@ -33,7 +37,7 @@ get_aliases() {
     echo "$aliases"
 }
 get_reading() {
-    get_data_if_exists $(get_aliases "$1") $1.tsv
+    get_data_if_exists $(get_aliases "$1") "$1.tsv"
 }
 get_ref() {
     # Thank you, StackExchange. This will cause $PAGER to give the same exit code
@@ -41,12 +45,12 @@ get_ref() {
     # to know that the reference returned no results.
     r="$1" shift
     cr="$1" shift
-    { { { { get_reading "$r" | awk -v cmd=ref -v ref="$*" -v cross_ref="$cr" -v lang="$lang" "$(get_data bbl.awk)"; echo $? >&3; } | ${PAGER} >&4; } 3>&1; } | { read xs; exit $xs; } } 4>&1
+    { { { { get_reading "$r" | awk -v cmd=ref -v ref="$*" -v cross_ref="$cr" -v lang="$lang" "$(get_awk)"; echo $? >&3; } | ${PAGER} >&4; } 3>&1; } | { read xs; exit $xs; } } 4>&1
 }
 list_books() {
     reading="$(echo "${BIBLE}" | cut -d " " -f 1)"
-    for f in $reading.tsv $(get_aliases "$reading"); do
-        get_data_if_exists "$f" 2>/dev/null | awk -v cmd=list "$(get_data bbl.awk)"
+    for f in "$reading.tsv" $(get_aliases "$reading"); do
+        get_data_if_exists "$f" 2>/dev/null | awk -v cmd=list "$(get_awk)"
     done | ${PAGER}
     exit
 }

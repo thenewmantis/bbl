@@ -49,6 +49,9 @@ cmd == "clean" {
 }
 
 cmd == "list" {
+    if (/^#/) {
+        next
+    }
 	if (!($2 in seen_books)) {
 		printf("%s (%s)\n", $1, $2)
 		seen_books[$2] = 1
