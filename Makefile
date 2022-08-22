@@ -5,7 +5,7 @@ bbl: bbl.sh bbl.awk readings/*/*.tsv readings/*/*.aliases
 	cat bbl.sh > $@
 	echo 'exit 0' >> $@
 	echo "#EOF" >> $@
-	tar cf bbl.tar bbl.awk
+	tar cf bbl.tar input.awk bbl.awk
 	(cd readings && \
 	for d in $$(find . -mindepth 1 -maxdepth 1 -type d -printf '%f\n'); do \
 		(cd "$$d" && \
@@ -21,9 +21,9 @@ bbl: bbl.sh bbl.awk readings/*/*.tsv readings/*/*.aliases
 	rm -f bbl.tar
 	chmod +x $@
 
-test: bbl.sh bbl.awk
+test: bbl.sh input.awk bbl.awk
 	shellcheck -s sh -S error bbl.sh
-	echo -n | gawk --lint=invalid -f bbl.awk
+	echo -n | gawk --lint=fatal -f input.awk -f bbl.awk
 
 clean:
 	rm -f bbl

@@ -7,7 +7,9 @@ BEGIN {
 	#  $6 Verse
 	FS = "\t"
 
-	MAX_WIDTH = 80
+    header_ended = 0
+    outputted_records = 0
+	MAX_WIDTH = envint("KJV_MAX_WIDTH", 80, 8, 80)
     NO_LINE_WRAP = envbool("KJV_NOLINEWRAP")
     NO_VERSE_NUMBERS = envbool("KJV_NOVERSENUMBERS")
     NO_CHAPTER_HEADINGS = envbool("KJV_NOCHAPTERHEADINGS")
@@ -22,11 +24,10 @@ BEGIN {
         NO_TITLE = 1
         NO_VERSE_BREAK = 1
     }
-	if (ENVIRON["KJV_MAX_WIDTH"] ~ /^[0-9]+$/) {
-		if (int(ENVIRON["KJV_MAX_WIDTH"]) < MAX_WIDTH) {
-			MAX_WIDTH = int(ENVIRON["KJV_MAX_WIDTH"])
-		}
-	}
+
+    if (!is_set(cmd)) {
+        cmd = "list"
+    }
 
 	if (cmd == "ref") {
         if (lang == "he") {
@@ -54,14 +55,7 @@ cmd == "list" {
 	}
 }
 
-function envbool(str){
-    return ENVIRON[str] != "" && ENVIRON[str] != "0"
-}
-function num(str){
-    return (lang == "he") ? str : int(str)
-}
-
-function parseref(arr, q) {
+function parseref(arr, q,       i) {
     # NOTE: For Hebrew, the colon between book and chapter is required
 	# 1. <book>
 	# 1a. <book>[, ?<book>]...
@@ -249,7 +243,6 @@ function cleanbook(book) {
 	return book
 }
 
-#TODO !!! Fix or use only internally
 function bookmatches(book, bookabbr, query) {
 	book = cleanbook(book)
 	if (book == query) {
@@ -259,7 +252,6 @@ function bookmatches(book, bookabbr, query) {
 	if (bookabbr == query) {
 		return book
 	}
-    #TODO !!! length(query) == 0?
 	if (substr(book, 1, length(query)) == query) {
 		return book
 	}
@@ -294,7 +286,7 @@ function roughpattern(regex) {
     return regex
 }
 
-function printverse(verse, word_count, characters_printed) {
+function printverse(verse, word_count, characters_printed,     i) {
 	if (NO_LINE_WRAP) {
         if (NO_VERSE_BREAK) {
             printf("%s ", verse)
@@ -328,7 +320,7 @@ function printverse(verse, word_count, characters_printed) {
     }
 }
 
-function process_alias(alias, aliasabbr, book_names,      arr) {
+function process_alias(alias, aliasabbr, book_names,      arr, i) {
     if (hasbook(alias, aliasabbr)) {
         delete p["book", cleanbook(alias)]
         delete p["book", cleanbook(aliasabbr)]
@@ -395,7 +387,7 @@ cmd == "ref" && mode == "exact" && hasbook($1, $2) && (p["chapter"] == "" || $4 
 	processline()
 }
 
-cmd == "ref" && mode == "random" && (p["book"] == "" || bookmatches($1, $2, p["book"])) && (p["chapter"] == "" || $4 == p["chapter"]) {
+cmd == "ref" && mode == "random" && (p["book"] == "" || hasbook($1, $2)) && (p["chapter"] == "" || $4 == p["chapter"]) {
     print
     outputted_records++
 }
@@ -404,29 +396,35 @@ cmd == "ref" && mode == "exact_ch_set" && hasbook($1, $2) && p["chapter", $4] {
 	processline()
 }
 
-cmd == "ref" && mode == "exact_set" && bookmatches($1, $2, p["book"]) && (((p["chapter"] == "" || $4 == p["chapter"]) && p["verse", $5]) || p["chapter:verse", $4 ":" $5]) {
+cmd == "ref" && mode == "exact_set" && hasbook($1, $2) && (((p["chapter"] == "" || $4 == p["chapter"]) && p["verse", $5]) || p["chapter:verse", $4 ":" $5]) {
 	processline()
 }
 
-cmd == "ref" && mode == "range" && bookmatches($1, $2, p["book"]) && ((p["chapter_end"] == "" && $4 == p["chapter"]) || ($4 >= p["chapter"] && $4 <= p["chapter_end"])) && (p["verse"] == "" || $5 >= p["verse"]) && (p["verse_end"] == "" || $5 <= p["verse_end"]) {
+cmd == "ref" && mode == "range" && hasbook($1, $2) && ((p["chapter_end"] == "" && $4 == p["chapter"]) || ($4 >= p["chapter"] && $4 <= p["chapter_end"])) && (p["verse"] == "" || $5 >= p["verse"]) && (p["verse_end"] == "" || $5 <= p["verse_end"]) {
 	processline()
 }
 
-cmd == "ref" && mode == "range_ext" && bookmatches($1, $2, p["book"]) && (($4 == p["chapter"] && $5 >= p["verse"] && p["chapter"] != p["chapter_end"]) || ($4 > p["chapter"] && $4 < p["chapter_end"]) || ($4 == p["chapter_end"] && $5 <= p["verse_end"] && p["chapter"] != p["chapter_end"]) || (p["chapter"] == p["chapter_end"] && $4 == p["chapter"] && $5 >= p["verse"] && $5 <= p["verse_end"])) {
+cmd == "ref" && mode == "range_ext" && hasbook($1, $2) && (($4 == p["chapter"] && $5 >= p["verse"] && p["chapter"] != p["chapter_end"]) || ($4 > p["chapter"] && $4 < p["chapter_end"]) || ($4 == p["chapter_end"] && $5 <= p["verse_end"] && p["chapter"] != p["chapter_end"]) || (p["chapter"] == p["chapter_end"] && $4 == p["chapter"] && $5 >= p["verse"] && $5 <= p["verse_end"])) {
 	processline()
 }
 
-cmd == "ref" && (mode == "search" || mode == "rough_search") && (p["book"] == "" || bookmatches($1, $2, p["book"])) && (p["chapter"] == "" || $4 == p["chapter"]) && match(mode == "rough_search" ? tolower($6) : $6, p["search"]) {
+cmd == "ref" && (mode == "search" || mode == "rough_search") && (p["book"] == "" || hasbook($1, $2)) && (p["chapter"] == "" || $4 == p["chapter"]) && match(mode == "rough_search" ? tolower($6) : $6, p["search"]) {
 	processline()
 }
 
 END {
 	if (cmd == "ref") {
         if (outputted_records == 0) {
-		    print "Unknown reference: " ref
+            if (!is_set(ref)) {
+                print "Opted to search by ref but no ref was specified"
+            } else {
+                print "Unknown reference: " ref
+            }
 		    exit 1
-        } else if (mode == "random") {
+        } else if (is_set(mode) && mode == "random") {
             printf("~~~RANDOMS: %d\n", p["numberOfVerses"])
         }
-	}
+    } else if (cmd != "list" && cmd != "clean") {
+        print "Unknown cmd specified: " cmd
+    }
 }

@@ -18,6 +18,9 @@ reading_exists() {
 get_data() {
     sed '1,/^#EOF$/d' < "$SELF" | tar xz -O "$@"
 }
+get_awk() {
+    get_data input.awk bbl.awk
+}
 get_data_if_exists() {
     list=$(ls_archive)
     get_data $(for arg in "$@"; do
@@ -291,7 +294,7 @@ else
         linesInFile=$(($(wc -l "$filename" | awk '{print $1}') - 1))
         sedCmd=$(shuf -i 1-$linesInFile -n "$numberOfVerses" | sort -n | tr '\n' ' ' | sed 's/ /p;/g' | sed 's/..$/{p;q}/')
         sed -n "$sedCmd" "$filename" > "${myTempDir}/randomVerses"
-        awk -v cmd=clean "$(get_data bbl.awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${filename}"
+        awk -v cmd=clean "$(get_awk)" "${myTempDir}/randomVerses" 2>/dev/null > "${filename}"
     fi
 fi
 
