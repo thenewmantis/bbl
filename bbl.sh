@@ -77,7 +77,7 @@ show_help() {
     echo "  Flags:"
     echo "  -l, --list-books        list book names (for the reading chosen)"
     echo "  -L, --list              list options for readings (Vulgate, KJV, Latin poems, etc.)"
-    echo "  -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)"
+    echo "  -o  <reading>           choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)"
     echo "  -W, --no-line-wrap      no line wrap"
     echo "  -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter"
     echo "  -C, --no-ch-numbers     no chapter headings either (implies -V)"
