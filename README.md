@@ -14,7 +14,7 @@ usage: bbl [flags] [reference...]
   Flags:
   -l, --list-books        list book names (for the reading chosen)
   -L, --list              list options for readings (Vulgate, KJV, Latin poems, etc.)
-  -o                      choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)
+  -o  <reading>           choose a reading by name (i.e. by the name of the corresponding TSV file, sans file extension)
   -W, --no-line-wrap      no line wrap
   -V, --no-verse-numbers  no verse numbers are printed--just the book title at the top and a number for each chapter
   -C, --no-ch-numbers     no chapter headings either (implies -V)
@@ -40,6 +40,8 @@ Specifying -i or -H will currently override all other translations and output on
 
   Reference types:
   NOTE: The colon between book and chapter is required for Hebrew, optional for everything else.
+ <Book> can refer either to the name of a book, or an alias referring to a list of books.
+ Specify the -l flag to get list of both books and aliases
  References for Hebrew must be in Hebrew; for all else, must be in English.
       <Book>
           Individual book
@@ -73,7 +75,8 @@ Specifying -i or -H will currently override all other translations and output on
       <Book>:<Chapter> @ <Number-of-Verses>?
           Random verse or assortment of verses from the given book:chapter
 
-
+ Exit code is 0 if no problems; 1 if cross-referencing and one or more references
+ returned nothing; 2 if no references returned anything.
 ```
 
 ## Note
