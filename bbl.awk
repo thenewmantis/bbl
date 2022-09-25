@@ -344,7 +344,11 @@ function processline() {
                 print("")
             }
         } else {
-            print($1)
+            if ($2 in long_title) {
+                printf("%s (%s)\n", long_title[$2], $2)
+            } else {
+                print($1)
+            }
         }
         last_book_printed = $2
 	}
@@ -380,10 +384,16 @@ function processline() {
 cmd == "ref" && !header_ended {
     if (/^#/) {
         header_ended = 1
+        next
     } else {
         process_alias($1, $2, $3)
         next
     }
+}
+
+/^#/ && cmd == "ref" {
+    long_title[$3] = $4
+    next
 }
 
 cmd == "ref" && mode == "exact" && hasbook($1, $2) && (p["chapter"] == "" || $4 == p["chapter"]) && (p["verse"] == "" || $5 == p["verse"]) {
