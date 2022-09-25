@@ -106,6 +106,8 @@ show_help() {
     echo " <Book> can refer either to the name of a book, or an alias referring to a list of books."
     echo " Specify the -l flag to get list of both books and aliases"
     echo " References for Hebrew must be in Hebrew; for all else, must be in English."
+    echo "      *"
+    echo "          Every book"
     echo "      <Book>"
     echo "          Individual book"
     echo "      <Book>:<Chapter>"

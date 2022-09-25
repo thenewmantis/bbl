@@ -60,6 +60,7 @@ cmd == "list" {
 
 function parseref(arr, q,       i) {
     # NOTE: For Hebrew, the colon between book and chapter is required
+	# 0. *
 	# 1. <book>
 	# 1a. <book>[, ?<book>]...
 	# 2. <book>:?<chapter>
@@ -78,6 +79,9 @@ function parseref(arr, q,       i) {
     #11. <book> @ <number of verses>?
     #12. <book>:?<chapter> @ <number of verses>?
 
+    if (q == "*") {
+        return "all"
+    }
 	if (match(q, re["book"]) == 1) {
             # 1, 1a, 2, 2a, 3, 3a, 3b, 4, 5, 6, 8, 9, 11, 12
             arr["book", cleanbook(substr(q, 1, RLENGTH))] = 1
@@ -394,6 +398,10 @@ cmd == "ref" && !header_ended {
 /^#/ && cmd == "ref" {
     long_title[$3] = $4
     next
+}
+
+cmd == "ref" && mode == "all" {
+    processline()
 }
 
 cmd == "ref" && mode == "exact" && hasbook($1, $2) && (p["chapter"] == "" || $4 == p["chapter"]) && (p["verse"] == "" || $5 == p["verse"]) {
