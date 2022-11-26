@@ -22,8 +22,11 @@ bbl: bbl.sh bbl.awk readings/*/*.tsv readings/*/*.aliases
 	chmod +x $@
 
 test: bbl.sh input.awk bbl.awk
-	shellcheck -s sh -S error bbl.sh
-	echo -n | gawk --lint=fatal -f input.awk -f bbl.awk
+	@{ shellcheck -s sh -S error bbl.sh; \
+	   echo -n | gawk --lint=fatal -f input.awk -f bbl.awk; } 2>&1 \
+	 | grep -v 'warning: turning off `--lint' | tee test || true
+	@{ [ "$$(wc -l test | cut -d' ' -f1)" = 0 ] && echo "PASSED" || echo "FAILED"; } | tee -a test
+
 
 clean:
 	rm -f bbl
@@ -36,4 +39,4 @@ install: bbl
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/bbl
 
-.PHONY: test clean install uninstall
+.PHONY: clean install uninstall
