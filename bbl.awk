@@ -288,7 +288,14 @@ function roughpattern(regex) {
             }
     }
     else if (lang =="la" ) {
-            gsub("e", "[eë]", regex)
+            gsub("a", "[aá]", regex)
+            gsub("e", "[eéë]", regex)
+            gsub("i", "[ií]", regex)
+            gsub("o", "[oó]", regex)
+            gsub("u", "[uú]", regex)
+            gsub("y", "[yý]", regex)
+            gsub("æ", "[æǽ]", regex)
+            gsub("œ", "[œœ́]", regex)
     }
     return regex
 }
